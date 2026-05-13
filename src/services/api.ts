@@ -1,7 +1,7 @@
 import { eq, and, like } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import { db } from '../db/db';
-import { users, relics, categories, favorites } from '../db/schema';
+import { users, relics, categories, favorites, tcgGroups } from '../db/schema';
 
 export const api = {
   loginUser: async (email: string, pass: string) => {
@@ -19,22 +19,26 @@ export const api = {
   },
 
   fetchRelics: async (
-    categoryId: number | null = null, 
+    tcgId: number | null = null, 
     searchQuery: string = '',
     conditionId: number | null = null,
     rarityId: number | null = null,
+    finishId: number | null = null,
     languageId: number | null = null
   ) => {
     const filters = [];
     
-    if (categoryId) {
-      filters.push(eq(relics.categoryId, categoryId));
+    if (tcgId) {
+      filters.push(eq(relics.tcgId, tcgId));
     }
     if (conditionId) {
       filters.push(eq(relics.conditionId, conditionId));
     }
     if (rarityId) {
       filters.push(eq(relics.rarityId, rarityId));
+    }
+    if (finishId) {
+      filters.push(eq(relics.finishId, finishId));
     }
     if (languageId) {
       filters.push(eq(relics.languageId, languageId));
@@ -59,8 +63,16 @@ export const api = {
     return await db.select().from(categories);
   },
 
-  addCategory: async (name: string, type: string) => {
-    await db.insert(categories).values({ name, type });
+  fetchTcgGroups: async () => {
+    return await db.select().from(tcgGroups);
+  },
+
+  addTcgGroup: async (name: string) => {
+    await db.insert(tcgGroups).values({ name });
+  },
+
+  addCategory: async (name: string, type: string, tcgId: number | null = null) => {
+    await db.insert(categories).values({ name, type, tcgId });
   },
 
   deleteCategory: async (categoryId: number) => {
@@ -70,9 +82,10 @@ export const api = {
   addRelic: async (
     title: string, 
     price: number, 
-    categoryId: number, 
+    tcgId: number, 
     conditionId: number, 
-    rarityId: number, 
+    rarityId: number | null, 
+    finishId: number | null,
     languageId: number, 
     userId: number, 
     imageUrl: string
@@ -80,9 +93,10 @@ export const api = {
     await db.insert(relics).values({ 
       title, 
       price, 
-      categoryId, 
+      tcgId, 
       conditionId,
       rarityId,
+      finishId,
       languageId,
       userId, 
       imageUrl, 
@@ -103,30 +117,32 @@ export const api = {
   },
 
   fetchRelicDetails: async (relicId: number) => {
-    const game = alias(categories, 'game');
+    const tcg = alias(tcgGroups, 'tcg');
     const condition = alias(categories, 'condition');
     const rarity = alias(categories, 'rarity');
+    const finish = alias(categories, 'finish');
     const language = alias(categories, 'language');
 
     const result = await db.select({
-      // CORREÇÃO: Selecionando cada campo explicitamente
       id: relics.id,
       title: relics.title,
       price: relics.price,
       imageUrl: relics.imageUrl,
       userId: relics.userId,
       inStock: relics.inStock,
-      // E pegando o campo 'name' de cada categoria associada
-      gameName: game.name,
+      
+      tcgName: tcg.name,
       conditionName: condition.name,
       rarityName: rarity.name,
+      finishName: finish.name,
       languageName: language.name,
     })
     .from(relics)
     .where(eq(relics.id, relicId))
-    .leftJoin(game, eq(relics.categoryId, game.id))
+    .leftJoin(tcg, eq(relics.tcgId, tcg.id))
     .leftJoin(condition, eq(relics.conditionId, condition.id))
     .leftJoin(rarity, eq(relics.rarityId, rarity.id))
+    .leftJoin(finish, eq(relics.finishId, finish.id))
     .leftJoin(language, eq(relics.languageId, language.id));
     
     return result[0];

@@ -115,9 +115,10 @@ export function DetalhesScreen({ route, navigation }: any) {
         {/* Tags Dinâmicas com os dados reais do banco */}
         <Text style={styles.sectionTitle}>Detalhes da Relíquia</Text>
         <View style={styles.tagsContainer}>
-          {relic.gameName && <View style={styles.tag}><Text style={styles.tagText}>{relic.gameName}</Text></View>}
+          {relic.tcgName && <View style={[styles.tag, { backgroundColor: Colors.douradoNobre }]}><Text style={styles.tagText}>{relic.tcgName}</Text></View>}
           {relic.conditionName && <View style={styles.tag}><Text style={styles.tagText}>{relic.conditionName}</Text></View>}
           {relic.rarityName && <View style={styles.tag}><Text style={styles.tagText}>{relic.rarityName}</Text></View>}
+          {relic.finishName && <View style={styles.tag}><Text style={styles.tagText}>{relic.finishName}</Text></View>}
           {relic.languageName && <View style={styles.tag}><Text style={styles.tagText}>{relic.languageName}</Text></View>}
         </View>
       </View>

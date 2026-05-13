@@ -14,26 +14,30 @@ export function AnunciarScreen({ navigation }: any) {
   const [imageUris, setImageUris] = useState<string[]>([]);
   
   const [cats, setCats] = useState<any[]>([]);
+  const [tcgs, setTcgs] = useState<any[]>([]);
   
-  // Estados para as múltiplas seleções
   const [selectedGame, setSelectedGame] = useState<number | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<number | null>(null);
   const [selectedRarity, setSelectedRarity] = useState<number | null>(null);
+  const [selectedFinish, setSelectedFinish] = useState<number | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<number | null>(null);
   
   const [isTcgModalVisible, setIsTcgModalVisible] = useState(false);
   const [tcgSearch, setTcgSearch] = useState('');
 
   useEffect(() => {
+    api.fetchTcgGroups().then(setTcgs);
     api.fetchCategories().then(setCats);
   }, []);
 
-  // Separando as categorias por tipo para renderizar na tela
-  const games = cats.filter(c => c.type === 'TCG');
   const conditions = cats.filter(c => c.type === 'Condition');
-  const rarities = cats.filter(c => c.type === 'Rarity');
   const languages = cats.filter(c => c.type === 'Language');
-  const filteredGames = games.filter(g => g.name.toLowerCase().includes(tcgSearch.toLowerCase()));
+  
+  // Filtros dinâmicos: Só busca raridade/foil referente ao jogo selecionado!
+  const rarities = cats.filter(c => c.type === 'Rarity' && c.tcgId === selectedGame);
+  const finishes = cats.filter(c => c.type === 'Finish' && c.tcgId === selectedGame);
+  
+  const filteredGames = tcgs.filter(g => g.name.toLowerCase().includes(tcgSearch.toLowerCase()));
 
   const pickImage = async (useCamera: boolean) => {
     let result;
@@ -66,7 +70,7 @@ export function AnunciarScreen({ navigation }: any) {
   };
 
   const handlePost = async () => {
-    if (!title || !price || !selectedGame || !selectedCondition || !selectedRarity || !selectedLanguage || imageUris.length === 0) {
+    if (!title || !price || !selectedGame || !selectedCondition || !selectedLanguage || imageUris.length === 0) {
       Alert.alert('Atenção', 'O ritual falhou! Preencha todos os dados e tire uma foto da relíquia.');
       return;
     }
@@ -80,6 +84,7 @@ export function AnunciarScreen({ navigation }: any) {
         selectedGame, 
         selectedCondition, 
         selectedRarity, 
+        selectedFinish,
         selectedLanguage, 
         user!.id, 
         imageUris.join(',') // Transformando a lista de fotos em um único texto para salvar!
@@ -89,7 +94,7 @@ export function AnunciarScreen({ navigation }: any) {
       
       // Limpar formulário
       setTitle(''); setPrice(''); setImageUris([]);
-      setSelectedGame(null); setSelectedCondition(null); setSelectedRarity(null); setSelectedLanguage(null);
+      setSelectedGame(null); setSelectedCondition(null); setSelectedRarity(null); setSelectedFinish(null); setSelectedLanguage(null);
       
       navigation.navigate('Mural');
     } catch (e) {
@@ -156,13 +161,16 @@ export function AnunciarScreen({ navigation }: any) {
           <Text style={styles.groupLabel}>1. Qual o Jogo?</Text>
           <TouchableOpacity style={styles.dropdownBtn} onPress={() => setIsTcgModalVisible(true)}>
             <Text style={styles.dropdownBtnText}>
-              {selectedGame ? games.find(g => g.id === selectedGame)?.name : "Pesquisar Jogo Mágico..."}
+              {selectedGame ? tcgs.find(g => g.id === selectedGame)?.name : "Selecionar Jogo Matriz (TCG)..."}
             </Text>
           </TouchableOpacity>
 
-          {renderCategoryGroup("2. Estado de Conservação?", conditions, selectedCondition, setSelectedCondition)}
-          {renderCategoryGroup("3. Nível de Raridade?", rarities, selectedRarity, setSelectedRarity)}
-          {renderCategoryGroup("4. Idioma da Carta?", languages, selectedLanguage, setSelectedLanguage)}
+          {/* Trava Hierárquica: Raridades e Finishes só aparecem APÓS a escolha da Matriz */}
+          {selectedGame && rarities.length > 0 && renderCategoryGroup("2. Nível de Raridade?", rarities, selectedRarity, setSelectedRarity)}
+          {selectedGame && finishes.length > 0 && renderCategoryGroup("3. Acabamento / Tratamento?", finishes, selectedFinish, setSelectedFinish)}
+          
+          {renderCategoryGroup("4. Estado de Conservação?", conditions, selectedCondition, setSelectedCondition)}
+          {renderCategoryGroup("5. Idioma da Carta?", languages, selectedLanguage, setSelectedLanguage)}
 
           <TouchableOpacity style={styles.btnPrimary} onPress={handlePost}>
             <PlusCircle color={Colors.carvalhoEscuro} size={20} />
@@ -185,7 +193,15 @@ export function AnunciarScreen({ navigation }: any) {
               data={filteredGames}
               keyExtractor={item => item.id.toString()}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.dropdownItem} onPress={() => { setSelectedGame(item.id); setIsTcgModalVisible(false); setTcgSearch(''); }}>
+                <TouchableOpacity 
+                  style={styles.dropdownItem} 
+                  onPress={() => { 
+                    setSelectedGame(item.id); 
+                    setSelectedRarity(null); // Reseta a raridade caso o cara mude o jogo
+                    setSelectedFinish(null); // Reseta o Foil
+                    setIsTcgModalVisible(false); 
+                    setTcgSearch(''); 
+                  }}>
                   <Text style={styles.dropdownItemText}>{item.name}</Text>
                 </TouchableOpacity>
               )}
