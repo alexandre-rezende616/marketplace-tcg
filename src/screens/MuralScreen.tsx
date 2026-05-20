@@ -44,6 +44,17 @@ export function MuralScreen() {
 
   useFocusEffect(useCallback(() => { loadRelics(); }, [selectedTcg, searchQuery, selectedCondition, selectedRarity, selectedFinish, selectedLanguage]));
 
+  const renderCard = ({ item }: { item: any }) => (
+    <TouchableOpacity style={styles.relicCard} onPress={() => navigation.navigate('Detalhes', { relicId: item.id })}>
+      <Image source={{ uri: item.imageUrl ? item.imageUrl.split(',')[0] : '' }} style={styles.image} />
+      <View style={styles.infoContainer}>
+        <Text style={styles.relicTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.relicPrice}>R$ {item.price.toFixed(2)}</Text>
+        <View style={item.inStock ? styles.tagStock : styles.tagOut}><Text style={styles.tagText}>{item.inStock ? 'Em Estoque' : 'Vendida'}</Text></View>
+      </View>
+    </TouchableOpacity>
+  );
+
   const renderFilterGroup = (title: string, data: any[], selected: number | null, onSelect: (id: number | null) => void) => (
     <View style={{ marginBottom: 15 }}>
       <Text style={styles.modalLabel}>{title}</Text>
@@ -81,16 +92,7 @@ export function MuralScreen() {
       <FlatList
         data={relics}
         keyExtractor={i => i.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.relicCard} onPress={() => navigation.navigate('Detalhes', { relicId: item.id })}>
-            <Image source={{ uri: item.imageUrl ? item.imageUrl.split(',')[0] : '' }} style={styles.image} />
-            <View style={styles.infoContainer}>
-              <Text style={styles.relicTitle} numberOfLines={2}>{item.title}</Text>
-              <Text style={styles.relicPrice}>R$ {item.price.toFixed(2)}</Text>
-              <View style={item.inStock ? styles.tagStock : styles.tagOut}><Text style={styles.tagText}>{item.inStock ? 'Em Estoque' : 'Vendida'}</Text></View>
-            </View>
-          </TouchableOpacity>
-        )}
+        renderItem={renderCard}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma relíquia encontrada.</Text>}
       />

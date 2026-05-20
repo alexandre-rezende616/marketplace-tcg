@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Colors } from '../theme/colors';
@@ -25,6 +25,11 @@ export function AuthScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Espaço para o Logo */}
+      <Image 
+        source={require('../../assets/logo.png')} // O caminho volta a apontar para a pasta 'assets' na raiz do projeto
+        style={styles.logo} 
+      />
       <Text style={styles.title}>Lance Raro</Text>
       <Text style={styles.subtitle}>Guilda de Aventureiros</Text>
 
@@ -51,8 +56,9 @@ export function AuthScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.carvalhoEscuro, justifyContent: 'center', padding: 20 },
+  logo: { width: 150, height: 150, alignSelf: 'center', marginBottom: 20, resizeMode: 'contain' },
   title: { fontSize: 36, fontFamily: 'serif', color: Colors.douradoNobre, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: Colors.pergaminho, textAlign: 'center', marginBottom: 40 },
+  subtitle: { fontSize: 16, color: Colors.pergaminho, textAlign: 'center', marginBottom: 30 },
   card: { backgroundColor: Colors.pergaminho, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: Colors.douradoNobre },
   input: { backgroundColor: '#EADBB0', borderRadius: 8, padding: 12, marginBottom: 15, fontFamily: 'sans-serif' },
   btnPrimary: { backgroundColor: Colors.douradoNobre, flexDirection: 'row', padding: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },

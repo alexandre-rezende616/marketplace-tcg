@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions, Modal } from 'react-native';
 import { Heart, MessageCircle, ShoppingBag, ArrowLeft, Star } from 'lucide-react-native';
+import ImageViewer from 'react-native-image-zoom-viewer';
+
 import { Colors } from '../theme/colors';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +15,8 @@ export function DetalhesScreen({ route, navigation }: any) {
   
   const [relic, setRelic] = useState<any>(null); // Estado para guardar os detalhes completos
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isViewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   useEffect(() => {
     // // quando a tela abre, a gente usa o ID pra buscar todos os detalhes da carta no banco
@@ -68,6 +72,7 @@ export function DetalhesScreen({ route, navigation }: any) {
   }
 
   const images = relic.imageUrl ? relic.imageUrl.split(',') : [];
+  const viewerImages = images.map((url: string) => ({ url }));
 
   return (
     <ScrollView style={styles.container}>
@@ -79,7 +84,9 @@ export function DetalhesScreen({ route, navigation }: any) {
         {images.length > 0 ? (
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
             {images.map((uri: string, idx: number) => (
-              <Image key={idx} source={{ uri }} style={{ width: screenWidth, height: '100%' }} resizeMode="cover" />
+              <TouchableOpacity key={idx} onPress={() => { setViewerIndex(idx); setViewerVisible(true); }}>
+                <Image source={{ uri }} style={{ width: screenWidth, height: '100%' }} resizeMode="cover" />
+              </TouchableOpacity>
             ))}
           </ScrollView>
         ) : (
@@ -90,7 +97,7 @@ export function DetalhesScreen({ route, navigation }: any) {
       <View style={styles.content}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>{relic.title}</Text>
-        <TouchableOpacity onPress={handleToggleFavorite}>
+          <TouchableOpacity onPress={handleToggleFavorite}>
             <Heart color={isFavorite ? Colors.rubiBordo : Colors.azulArcano} fill={isFavorite ? Colors.rubiBordo : 'transparent'} size={28} />
           </TouchableOpacity>
         </View>
@@ -131,6 +138,16 @@ export function DetalhesScreen({ route, navigation }: any) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Modal para ver a imagem em tela cheia com zoom */}
+      <Modal visible={isViewerVisible} transparent={true} onRequestClose={() => setViewerVisible(false)}>
+        <ImageViewer
+          imageUrls={viewerImages}
+          index={viewerIndex}
+          onCancel={() => setViewerVisible(false)}
+          enableSwipeDown
+        />
+      </Modal>
     </ScrollView>
   );
 }
