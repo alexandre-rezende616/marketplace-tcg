@@ -1,38 +1,49 @@
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { seedDatabase } from './src/db/db';
-import { Colors } from './src/theme/colors';
+
+// Mantém a splash screen nativa visível automaticamente
+SplashScreen.preventAutoHideAsync();
 
 export default function App() {
-  const [dbReady, setDbReady] = useState(false);
+  const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {
-    // // TODO: perguntar pro professor se inicializar o banco no App.tsx é a melhor prática.
-    const setupDatabase = async () => {
+    async function prepare() {
       try {
+        // Executa a nossa função de criação e semeadura do banco de dados
         await seedDatabase();
-        setDbReady(true);
-      } catch (error) {
-        console.error("Erro ao forjar o banco de dados da taverna:", error);
+        console.log("Banco de dados e sementes verificados com sucesso!");
+      } catch (e) {
+        console.warn("Erro ao preparar o app:", e);
+      } finally {
+        // Diz ao app que ele está pronto para ser renderizado
+        setAppIsReady(true);
       }
-    };
+    }
 
-    setupDatabase();
+    prepare();
   }, []);
 
-  if (!dbReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.carvalhoEscuro }}>
-        <ActivityIndicator size="large" color={Colors.douradoNobre} />
-      </View>
-    );
+  // Função para esconder a splash screen somente quando o app estiver pronto e renderizado
+  const onLayoutRootView = useCallback(async () => {
+    if (appIsReady) {
+      await SplashScreen.hideAsync();
+    }
+  }, [appIsReady]);
+
+  if (!appIsReady) {
+    return null; // Não renderiza nada enquanto o app não está pronto, mantendo a splash visível
   }
 
   return (
-    <AuthProvider>
-      <AppNavigator />
-    </AuthProvider>
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <AuthProvider>
+        <AppNavigator />
+      </AuthProvider>
+    </View>
   );
 }

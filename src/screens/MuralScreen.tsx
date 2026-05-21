@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, TextInput, ScrollView, Modal } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, TextInput, ScrollView, Modal, RefreshControl } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Search, SlidersHorizontal, X } from 'lucide-react-native';
 
@@ -11,6 +11,7 @@ export function MuralScreen() {
   const [relics, setRelics] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [tcgs, setTcgs] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -43,6 +44,12 @@ export function MuralScreen() {
   };
 
   useFocusEffect(useCallback(() => { loadRelics(); }, [selectedTcg, searchQuery, selectedCondition, selectedRarity, selectedFinish, selectedLanguage]));
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadRelics();
+    setRefreshing(false);
+  }, [selectedTcg, searchQuery, selectedCondition, selectedRarity, selectedFinish, selectedLanguage]);
 
   const renderCard = ({ item }: { item: any }) => (
     <TouchableOpacity style={styles.relicCard} onPress={() => navigation.navigate('Detalhes', { relicId: item.id })}>
@@ -95,6 +102,14 @@ export function MuralScreen() {
         renderItem={renderCard}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma relíquia encontrada.</Text>}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.douradoNobre]} // Cor do spinner no Android
+            tintColor={Colors.douradoNobre} // Cor do spinner no iOS
+          />
+        }
       />
 
       <Modal visible={isModalVisible} animationType="slide" transparent={true}>

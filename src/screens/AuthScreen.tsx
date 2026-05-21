@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Colors } from '../theme/colors';
@@ -9,13 +9,21 @@ export function AuthScreen({ navigation }: any) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Aviso', 'Preencha suas credenciais para entrar na Taverna.');
+      return;
+    }
+    setIsLoading(true);
     try {
       const user = await api.loginUser(email, password);
       signIn(user);
     } catch (e: any) {
       Alert.alert('Erro no Feitiço', e.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -24,7 +32,10 @@ export function AuthScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Espaço para o Logo */}
       <Image 
         source={require('../../assets/logo.png')} // O caminho volta a apontar para a pasta 'assets' na raiz do projeto
@@ -37,9 +48,15 @@ export function AuthScreen({ navigation }: any) {
         <TextInput style={styles.input} placeholder="E-mail da sua jornada..." placeholderTextColor="#A08C75" value={email} onChangeText={setEmail} autoCapitalize="none" />
         <TextInput style={styles.input} placeholder="Senha secreta..." placeholderTextColor="#A08C75" value={password} onChangeText={setPassword} secureTextEntry />
 
-        <TouchableOpacity style={styles.btnPrimary} onPress={handleLogin}>
-          <LogIn color={Colors.carvalhoEscuro} size={20} />
-          <Text style={styles.btnText}>Adentrar a Taverna</Text>
+        <TouchableOpacity style={styles.btnPrimary} onPress={handleLogin} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color={Colors.carvalhoEscuro} size="small" />
+          ) : (
+            <>
+              <LogIn color={Colors.carvalhoEscuro} size={20} />
+              <Text style={styles.btnText}>Adentrar a Taverna</Text>
+            </>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleForgotPassword} style={{ marginTop: 15 }}>
@@ -50,7 +67,7 @@ export function AuthScreen({ navigation }: any) {
           <Text style={styles.registerText}>Ainda não tem conta? Assine o Pacto!</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
