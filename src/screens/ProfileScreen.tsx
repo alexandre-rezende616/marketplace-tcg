@@ -117,7 +117,7 @@ export function ProfileScreen() {
           </View>
         </TouchableOpacity>
         <View style={{ alignItems: 'center', marginTop: 10 }}>
-          <Text style={styles.nickname}>{(user as any)?.nickname || 'Aventureiro Sem Nome'}</Text>
+          <Text style={styles.nickname}>{(user as any)?.nickname || 'Aventureiro Sem Nome'} (ID: {user?.id})</Text>
           <Text style={styles.email}>{user?.email}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>

@@ -21,23 +21,19 @@ O grande diferencial deste projeto é sua **Arquitetura Taxonômica de Dados**, 
 * **Frontend Mobile:** React Native + Expo
 * **Linguagem:** TypeScript
 * **Navegação:** React Navigation (Tabs & Stacks)
-* **Banco de Dados (Local):** `expo-sqlite` (SQLite rodando nativamente)
-* **ORM:** Drizzle ORM (`drizzle-orm/expo-sqlite`)
+* **Integração:** Consumo de API REST (Java Spring Boot)
 * **Ícones:** Lucide React Native
 * **Mídia:** `expo-image-picker`
 
 ---
 
-## 🏗️ Arquitetura de Dados e "Seed" Automático
+## 🏗️ Backend e Banco de Dados
 
-Este projeto não necessita de um servidor externo para rodar em ambiente de desenvolvimento. O banco de dados SQLite é instanciado localmente no dispositivo. 
+O aplicativo agora se comunica com uma API desenvolvida em **Java Spring Boot**. Toda a arquitetura de dados, incluindo a taxonomia de raridades e o banco de dados, foi movida para este novo repositório dedicado.
 
-O app possui um script inteligente de **Database Seeding**. Quando você clona o projeto e abre o aplicativo pela primeira vez:
-1. O Expo verifica que o arquivo `.db` não existe e cria um novo banco vazio.
-2. O Drizzle ORM executa a criação rígida das tabelas (Users, Relics, Categories, TcgGroups, Favorites).
-3. O script injeta centenas de registros contendo as **Regras Taxonômicas Oficiais de 2026** (Ex: "Hyper Rare" associado exclusivamente a "Pokémon TCG"), além de usuários e produtos de teste.
+🔗 **Repositório do Backend:** backend-lance-raro
 
-> **Segurança:** O uso de `ON DELETE CASCADE` garante que, caso o Admin delete um jogo matriz, todas as suas raridades filhas sejam purgadas, evitando lixo no banco de dados.
+O backend possui um script de **Database Seeding** (através do `DataSeeder.java`) que injeta os usuários, categorias (Regras Taxonômicas), grupos e relíquias de teste ao subir o servidor pela primeira vez.
 
 ---
 
@@ -49,24 +45,32 @@ O app possui um script inteligente de **Database Seeding**. Quando você clona o
 
 ### Passo a Passo
 
-1. **Clone o repositório:**
+1. **Configure e rode o Backend:**
+   * Siga as instruções no repositório do backend para iniciar a API na sua máquina local.
+
+2. **Configuração de IP:**
+   * Como o app roda em um emulador ou dispositivo físico e a API roda localmente na sua máquina, você precisará **atualizar o IP** em todas as requisições.
+   * Abra o arquivo `src/services/api.ts` e substitua os IPs (ex: `10.65.65.125`) pelo endereço IPv4 da sua máquina na rede atual.
+   * *Dica:* No Windows, abra o CMD e digite `ipconfig` para descobrir seu endereço IPv4 local.
+
+3. **Clone o repositório do App:**
    ```bash
    git clone https://github.com/alexandre-rezende616/marketplace-tcg.git
    cd marketplace-tcg
    cd lance-raro
    ```
 
-2. **Instale as dependências:**
+4. **Instale as dependências:**
    ```bash
    npm install
    ```
 
-3. **Inicie o servidor do Expo:**
+5. **Inicie o servidor do Expo:**
    ```bash
    npx expo start
    ```
 
-4. **Abra o aplicativo:**
+6. **Abra o aplicativo:**
    * Escaneie o QR Code que aparecerá no terminal usando o aplicativo **Expo Go** no seu celular.
    * Ou pressione `a` no terminal para abrir no emulador Android.
 
