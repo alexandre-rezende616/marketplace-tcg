@@ -1,6 +1,8 @@
+export const BASE_URL = 'http://10.65.65.125:8080/api';
+
 export const api = {
   loginUser: async (email: string, pass: string) => {
-    const response = await fetch('http://10.65.65.125:8080/api/users/login', {
+    const response = await fetch(`${BASE_URL}/users/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pass })
@@ -12,7 +14,7 @@ export const api = {
   },
 
   registerUser: async (email: string, pass: string, nickname: string) => {
-    const response = await fetch('http://10.65.65.125:8080/api/users/register', {
+    const response = await fetch(`${BASE_URL}/users/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pass, nickname })
@@ -36,7 +38,7 @@ export const api = {
     languageId: number | null = null
   ) => {
     try {
-      const enderecoJava = 'http://10.65.65.125:8080/api/relics';
+      const enderecoJava = `${BASE_URL}/relics`;
       
       console.log("Invocando o servidor Java em:", enderecoJava);
       
@@ -64,7 +66,7 @@ export const api = {
 
   fetchUserRelics: async (userId: number) => {
     try {
-      const enderecoJava = `http://10.65.65.125:8080/api/relics/user/${userId}`;
+      const enderecoJava = `${BASE_URL}/relics/user/${userId}`;
       const response = await fetch(enderecoJava);
       if (!response.ok) {
         throw new Error('Falha ao buscar as relíquias do aventureiro na Taverna.');
@@ -78,7 +80,7 @@ export const api = {
 
   fetchCategories: async () => {
     try {
-      const response = await fetch('http://10.65.65.125:8080/api/categories');
+      const response = await fetch(`${BASE_URL}/categories`);
       return await response.json();
     } catch (e) {
       return [];
@@ -87,7 +89,7 @@ export const api = {
 
   fetchTcgGroups: async () => {
     try {
-      const response = await fetch('http://10.65.65.125:8080/api/tcggroups');
+      const response = await fetch(`${BASE_URL}/tcggroups`);
       return await response.json();
     } catch (e) {
       return [];
@@ -95,7 +97,7 @@ export const api = {
   },
 
   addTcgGroup: async (name: string) => {
-    await fetch('http://10.65.65.125:8080/api/tcggroups', {
+    await fetch(`${BASE_URL}/tcggroups`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
@@ -103,7 +105,7 @@ export const api = {
   },
 
   addCategory: async (name: string, type: string, tcgId: number | null = null) => {
-    await fetch('http://10.65.65.125:8080/api/categories', {
+    await fetch(`${BASE_URL}/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, type, tcgId })
@@ -111,7 +113,7 @@ export const api = {
   },
 
   deleteCategory: async (categoryId: number) => {
-    await fetch(`http://10.65.65.125:8080/api/categories/${categoryId}`, { method: 'DELETE' });
+    await fetch(`${BASE_URL}/categories/${categoryId}`, { method: 'DELETE' });
   },
 
   addRelic: async (
@@ -125,7 +127,7 @@ export const api = {
     userId: number, 
     imageUrl: string
   ) => {
-    const enderecoJava = 'http://10.65.65.125:8080/api/relics';
+    const enderecoJava = `${BASE_URL}/relics`;
     
     const novaReliquia = {
       title,
@@ -154,7 +156,7 @@ export const api = {
   },
 
   updateUserAvatar: async (userId: number, avatarUrl: string) => {
-    await fetch(`http://10.65.65.125:8080/api/users/${userId}`, {
+    await fetch(`${BASE_URL}/users/${userId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ avatarUrl })
@@ -163,7 +165,7 @@ export const api = {
 
   deleteRelic: async (relicId: number, userId: number) => {
     try {
-      const enderecoJava = `http://10.65.65.125:8080/api/relics/${relicId}`;
+      const enderecoJava = `${BASE_URL}/relics/${relicId}`;
       await fetch(enderecoJava, { method: 'DELETE' });
     } catch (error) {
       console.error("Erro ao deletar carta no Java:", error);
@@ -172,7 +174,7 @@ export const api = {
 
   buyRelic: async (relicId: number) => {
     try {
-      const enderecoJava = `http://10.65.65.125:8080/api/relics/${relicId}/buy`;
+      const enderecoJava = `${BASE_URL}/relics/${relicId}/buy`;
       await fetch(enderecoJava, { method: 'PUT' });
     } catch (error) {
       console.error("Erro ao comprar carta no Java:", error);
@@ -181,7 +183,7 @@ export const api = {
 
   fetchRelicDetails: async (relicId: number) => {
     try {
-      const enderecoJava = `http://10.65.65.125:8080/api/relics/${relicId}`;
+      const enderecoJava = `${BASE_URL}/relics/${relicId}`;
       const response = await fetch(enderecoJava);
       
       if (!response.ok) {
@@ -194,7 +196,7 @@ export const api = {
       const fetchCat = async (id: number) => {
         if (!id) return null;
         try { 
-          const res = await fetch(`http://10.65.65.125:8080/api/categories/${id}`);
+          const res = await fetch(`${BASE_URL}/categories/${id}`);
           return res.ok ? await res.json() : null;
         } catch { return null; }
       };
@@ -202,7 +204,7 @@ export const api = {
       const fetchTcg = async (id: number) => {
         if (!id) return null;
         try {
-          const res = await fetch(`http://10.65.65.125:8080/api/tcggroups/${id}`);
+          const res = await fetch(`${BASE_URL}/tcggroups/${id}`);
           return res.ok ? await res.json() : null;
         } catch { return null; }
       };
@@ -235,7 +237,7 @@ export const api = {
 
   checkIsFavorite: async (userId: number, relicId: number) => {
     try {
-      const response = await fetch(`http://10.65.65.125:8080/api/favorites/check?userId=${userId}&relicId=${relicId}`);
+      const response = await fetch(`${BASE_URL}/favorites/check?userId=${userId}&relicId=${relicId}`);
       return await response.json();
     } catch (e) {
       return false;
@@ -244,7 +246,7 @@ export const api = {
 
   toggleFavorite: async (userId: number, relicId: number) => {
     try {
-      const response = await fetch('http://10.65.65.125:8080/api/favorites/toggle', {
+      const response = await fetch(`${BASE_URL}/favorites/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, relicId })
@@ -258,13 +260,13 @@ export const api = {
 
   fetchUserFavorites: async (userId: number) => {
     try {
-      const responseFavs = await fetch(`http://10.65.31.226:8080/api/favorites/user/${userId}`);
+      const responseFavs = await fetch(`${BASE_URL}/favorites/user/${userId}`);
       const favs = await responseFavs.json();
       if (favs.length === 0) return [];
       
       const cartasFavoritas = [];
       for (const fav of favs) {
-        const res = await fetch(`http://10.65.31.226:8080/api/relics/${fav.relicId}`);
+        const res = await fetch(`${BASE_URL}/relics/${fav.relicId}`);
         if (res.ok) {
           const data = await res.json();
           cartasFavoritas.push(data);
@@ -279,7 +281,7 @@ export const api = {
 
   getAdminStats: async () => {
     try {
-      const response = await fetch('http://10.65.65.125:8080/api/relics');
+      const response = await fetch(`${BASE_URL}/relics`);
       const allRelics = await response.json();
       
       const totalRelics = allRelics.length;
@@ -299,7 +301,7 @@ export const api = {
     if (pass) dataToUpdate.password = pass;
     
     if (Object.keys(dataToUpdate).length > 0) {
-      await fetch(`http://10.65.65.125:8080/api/users/${userId}`, {
+      await fetch(`${BASE_URL}/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToUpdate)

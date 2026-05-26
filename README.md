@@ -50,7 +50,7 @@ O backend possui um script de **Database Seeding** (através do `DataSeeder.java
 
 2. **Configuração de IP:**
    * Como o app roda em um emulador ou dispositivo físico e a API roda localmente na sua máquina, você precisará **atualizar o IP** em todas as requisições.
-   * Abra o arquivo `src/services/api.ts` e substitua os IPs (ex: `10.65.65.125`) pelo endereço IPv4 da sua máquina na rede atual.
+   * Abra o arquivo `src/services/api.ts` e altere a constante global `BASE_URL` (ex: `http://10.65.65.125:8080/api`) usando o endereço IPv4 da sua máquina na rede atual.
    * *Dica:* No Windows, abra o CMD e digite `ipconfig` para descobrir seu endereço IPv4 local.
 
 3. **Clone o repositório do App:**
