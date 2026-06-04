@@ -3,7 +3,6 @@ import { View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { seedDatabase } from './src/db/db';
 
 // Mantém a splash screen nativa visível automaticamente
 SplashScreen.preventAutoHideAsync();
@@ -14,9 +13,8 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Executa a nossa função de criação e semeadura do banco de dados
-        await seedDatabase();
-        console.log("Banco de dados e sementes verificados com sucesso!");
+        // Como migramos para o Spring Boot, não precisamos mais semear o SQLite local aqui.
+        // Espaço reservado para carregamento de fontes ou outras verificações iniciais.
       } catch (e) {
         console.warn("Erro ao preparar o app:", e);
       } finally {

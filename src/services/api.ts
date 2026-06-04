@@ -1,4 +1,4 @@
-export const BASE_URL = 'http://10.65.65.125:8080/api';
+export const BASE_URL = 'http://10.65.13.71:8080/api';
 
 export const api = {
   loginUser: async (email: string, pass: string) => {
@@ -35,7 +35,8 @@ export const api = {
     conditionId: number | null = null,
     rarityId: number | null = null,
     finishId: number | null = null,
-    languageId: number | null = null
+    languageId: number | null = null,
+    locationQuery: string = ''
   ) => {
     try {
       const enderecoJava = `${BASE_URL}/relics`;
@@ -54,6 +55,12 @@ export const api = {
       if (searchQuery && searchQuery.trim() !== '') {
         dadosFiltrados = dadosFiltrados.filter((relic: any) => 
           relic.title.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+
+      if (locationQuery && locationQuery.trim() !== '') {
+        dadosFiltrados = dadosFiltrados.filter((relic: any) => 
+          relic.location && relic.location.toLowerCase().includes(locationQuery.toLowerCase())
         );
       }
 
@@ -125,7 +132,8 @@ export const api = {
     finishId: number | null,
     languageId: number, 
     userId: number, 
-    imageUrl: string
+    imageUrl: string,
+    location: string
   ) => {
     const enderecoJava = `${BASE_URL}/relics`;
     
@@ -139,6 +147,7 @@ export const api = {
       languageId,
       userId,
       imageUrl,
+      location,
       inStock: true
     };
 
@@ -171,6 +180,22 @@ export const api = {
       console.error("Erro ao deletar carta no Java:", error);
     }
   },
+  
+  boostRelic: async (relicId: number, level: number) => {
+    try {
+      await fetch(`${BASE_URL}/relics/${relicId}/boost?level=${level}`, { method: 'PUT' });
+    } catch (error) {
+      console.error("Erro ao impulsionar carta no Java:", error);
+    }
+  },
+
+  deleteAccount: async (userId: number) => {
+    try {
+      await fetch(`${BASE_URL}/users/${userId}`, { method: 'DELETE' });
+    } catch (error) {
+      console.error("Erro ao deletar conta no Java:", error);
+    }
+  },
 
   buyRelic: async (relicId: number) => {
     try {
@@ -178,6 +203,18 @@ export const api = {
       await fetch(enderecoJava, { method: 'PUT' });
     } catch (error) {
       console.error("Erro ao comprar carta no Java:", error);
+    }
+  },
+
+  generatePixBilling: async (relicId: number) => {
+    try {
+      console.log(`[APP] Solicitando PIX para a relíquia ID: ${relicId} no endereço: ${BASE_URL}/payments/checkout/${relicId}`);
+      const response = await fetch(`${BASE_URL}/payments/checkout/${relicId}`);
+      if (!response.ok) throw new Error('Falha ao gerar o PIX na Taverna.');
+      return await response.json();
+    } catch (e) {
+      console.error("Erro na integração Abacate Pay:", e);
+      return null;
     }
   },
 
@@ -222,6 +259,7 @@ export const api = {
         imageUrl: data.imageUrl,
         userId: data.userId,
         inStock: data.inStock,
+        location: data.location,
         
         tcgName: tcg ? tcg.name : 'Desconhecido',
         conditionName: condition ? condition.name : 'Desconhecida',
@@ -295,10 +333,23 @@ export const api = {
     }
   },
 
-  updateUserProfile: async (userId: number, nickname: string, pass: string) => {
+  fetchUserDetails: async (userId: number) => {
+    try {
+      const response = await fetch(`${BASE_URL}/users/${userId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  updateUserProfile: async (userId: number, nickname: string, pass: string, phone?: string) => {
     const dataToUpdate: any = {};
     if (nickname) dataToUpdate.nickname = nickname;
     if (pass) dataToUpdate.password = pass;
+    if (phone) dataToUpdate.phone = phone;
     
     if (Object.keys(dataToUpdate).length > 0) {
       await fetch(`${BASE_URL}/users/${userId}`, {
@@ -307,5 +358,26 @@ export const api = {
         body: JSON.stringify(dataToUpdate)
       });
     }
+  },
+
+  // --- CORREIO DA TAVERNA (NOTIFICAÇÕES) ---
+  fetchNotifications: async (userId: number) => {
+    try {
+      const res = await fetch(`${BASE_URL}/notifications/user/${userId}`);
+      if (res.ok) return await res.json();
+      return [];
+    } catch { return []; }
+  },
+
+  markNotificationRead: async (notifId: number) => {
+    try {
+      await fetch(`${BASE_URL}/notifications/${notifId}/read`, { method: 'PUT' });
+    } catch (e) { console.error("Erro ao ler notificação:", e); }
+  },
+
+  deleteNotification: async (notifId: number) => {
+    try {
+      await fetch(`${BASE_URL}/notifications/${notifId}`, { method: 'DELETE' });
+    } catch (e) { console.error("Erro ao apagar notificação:", e); }
   }
 };

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, FlatList, Modal, TextInput } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, FlatList, Modal, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Camera, Trash2, Edit3, X, Save, LogOut } from 'lucide-react-native';
+import { Camera, Trash2, Edit3, X, Save, LogOut, CheckCircle, HeartCrack, ScrollText, Settings, Sparkles, ShieldAlert } from 'lucide-react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -19,6 +19,13 @@ export function ProfileScreen() {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [newNickname, setNewNickname] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newPhone, setNewPhone] = useState((user as any)?.phone || '');
+  const [isUploading, setIsUploading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const [isBoostVisible, setIsBoostVisible] = useState(false);
+  const [relicToBoost, setRelicToBoost] = useState<any>(null);
 
   const loadMyRelics = async () => {
     if (user) {
@@ -30,6 +37,12 @@ export function ProfileScreen() {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadMyRelics();
+    setRefreshing(false);
+  }, [user]);
+
   // // useFocusEffect é tipo um useEffect que roda toda vez que a gente entra na tela
   // // bom pra atualizar a lista depois que a gente anuncia uma carta nova
   useFocusEffect(
@@ -37,6 +50,33 @@ export function ProfileScreen() {
       loadMyRelics();
     }, [user])
   );
+
+  // Função mágica do Cloudinary copiada da Forja
+  const uploadImageToCloudinary = async (uri: string) => {
+    const CLOUD_NAME = 'dbk9uavtw'; // Seu Cloud Name
+    const UPLOAD_PRESET = 'lanceraro_preset';
+
+    const data = new FormData();
+    data.append('file', {
+      uri,
+      type: 'image/jpeg',
+      name: `avatar_${Date.now()}.jpg`,
+    } as any);
+    data.append('upload_preset', UPLOAD_PRESET);
+    data.append('cloud_name', CLOUD_NAME);
+
+    try {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: data,
+      });
+      const result = await response.json();
+      return result.secure_url;
+    } catch (e) {
+      console.error("Erro no Cloudinary:", e);
+      return null;
+    }
+  };
 
   const handleAvatarChange = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -47,20 +87,29 @@ export function ProfileScreen() {
     });
 
     if (!result.canceled && user) {
-      const newUri = result.assets[0].uri;
-      await api.updateUserAvatar(user.id, newUri);
-      setAvatarUri(newUri);
-      // Atualiza o user no context pra foto aparecer em todo o app (se precisar)
-      signIn({ ...user, avatarUrl: newUri });
+      setIsUploading(true);
+      const localUri = result.assets[0].uri;
+      
+      const cloudUrl = await uploadImageToCloudinary(localUri);
+      
+      if (cloudUrl) {
+        await api.updateUserAvatar(user.id, cloudUrl);
+        setAvatarUri(cloudUrl);
+        signIn({ ...user, avatarUrl: cloudUrl } as any);
+      } else {
+        Alert.alert("Erro", "A magia falhou ao enviar o retrato para a nuvem.");
+      }
+      setIsUploading(false);
     }
   };
 
   const handleSaveProfile = async () => {
     if (user) {
       try {
-        await api.updateUserProfile(user.id, newNickname, newPassword);
+        await api.updateUserProfile(user.id, newNickname, newPassword, newPhone);
         Alert.alert("Sucesso", "Seu pergaminho de identidade foi atualizado!");
-        signIn({ ...user, nickname: newNickname || (user as any).nickname });
+        // cast to any to allow extra fields (like phone) that may not be declared on User type
+        signIn({ ...(user as any), nickname: newNickname || (user as any).nickname, phone: newPhone || (user as any).phone } as any);
         setIsEditModalVisible(false);
         setNewPassword('');
       } catch (error) {
@@ -89,6 +138,69 @@ export function ProfileScreen() {
     );
   };
 
+  const handleMarkAsSold = (relicId: number) => {
+    Alert.alert(
+      "Marcar como Vendida?",
+      "A carta sairá do mural e ficará registrada como vendida no seu histórico.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Confirmar Venda", 
+          onPress: async () => {
+            if (user) {
+              await api.buyRelic(relicId);
+              loadMyRelics(); // Recarrega a lista para mostrar a tag vermelha "Vendida"
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleRemoveFavorite = async (relicId: number) => {
+    if (user) {
+      await api.toggleFavorite(user.id, relicId);
+      loadMyRelics(); // Recarrega para a carta sumir da lista na hora!
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert("Banimento Definitivo", "Tem certeza que deseja apagar sua conta? Essa ação não tem volta!", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Excluir Tudo", style: "destructive", onPress: async () => {
+        if (user) {
+          await api.deleteAccount(user.id);
+          signOut();
+        }
+      }}
+    ]);
+  };
+
+  const handleBuyBoost = (level: number, priceStr: string) => {
+    // Simulador VIP (Pronto para integrar AbacatePay depois!)
+    Alert.alert(
+      "Destaque VIP", 
+      `A taxa de ${priceStr} foi paga à Taverna com sucesso!`, 
+      [{ text: "OK", onPress: async () => {
+        if (relicToBoost) {
+          await api.boostRelic(relicToBoost.id, level);
+          setIsBoostVisible(false);
+          loadMyRelics();
+          Alert.alert("✨ Sucesso!", "Sua relíquia foi abençoada e agora brilha no topo do mural!");
+        }
+      }}]
+    );
+  };
+
+  const formatBoostDate = (dateData: any) => {
+    if (!dateData) return '...';
+    if (Array.isArray(dateData)) {
+      const [y, m, d] = dateData;
+      return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+    }
+    return new Date(dateData).toLocaleDateString('pt-BR');
+  };
+
   const renderRelicItem = ({ item }: { item: any }) => (
     <TouchableOpacity style={styles.relicCard} onPress={() => navigation.navigate('Detalhes', { relicId: item.id })}>
       <Image source={{ uri: item.imageUrl ? item.imageUrl.split(',')[0] : '' }} style={styles.relicImage} />
@@ -97,9 +209,39 @@ export function ProfileScreen() {
         <Text style={styles.relicPrice}>R$ {item.price.toFixed(2)}</Text>
       </View>
       {activeTab === 'anuncios' && (
-        <TouchableOpacity onPress={() => handleDeleteRelic(item.id)} style={styles.deleteButton}>
-          <Trash2 color={Colors.pergaminho} size={20} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {item.inStock && (
+            <TouchableOpacity onPress={() => handleMarkAsSold(item.id)} style={[styles.deleteButton, { backgroundColor: Colors.verdeFloresta }]}>
+              <CheckCircle color={Colors.pergaminho} size={20} />
+            </TouchableOpacity>
+          )}
+          {item.inStock && (item.boostLevel || 0) === 0 && (
+            <TouchableOpacity onPress={() => { setRelicToBoost(item); setIsBoostVisible(true); }} style={[styles.deleteButton, { backgroundColor: Colors.douradoNobre }]}>
+              <Sparkles color={Colors.carvalhoEscuro} size={20} />
+            </TouchableOpacity>
+          )}
+          
+          {/* Aviso de validade do VIP */}
+          {item.inStock && (item.boostLevel || 0) > 0 && (
+            <View style={{ backgroundColor: '#2C1B12', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, justifyContent: 'center' }}>
+              <Text style={{ color: Colors.douradoNobre, fontSize: 10, fontWeight: 'bold' }}>Destaque Ativo</Text>
+              <Text style={{ color: Colors.pergaminho, fontSize: 10, marginTop: 2 }}>
+                Até {formatBoostDate(item.boostExpiresAt)}
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity onPress={() => handleDeleteRelic(item.id)} style={styles.deleteButton}>
+            <Trash2 color={Colors.pergaminho} size={20} />
+          </TouchableOpacity>
+        </View>
+      )}
+      {activeTab === 'favoritos' && (
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={() => handleRemoveFavorite(item.id)} style={[styles.deleteButton, { backgroundColor: Colors.carvalhoEscuro }]}>
+            <HeartCrack color={Colors.pergaminho} size={20} />
+          </TouchableOpacity>
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -107,14 +249,19 @@ export function ProfileScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleAvatarChange}>
-          <Image 
-            source={avatarUri ? { uri: avatarUri } : { uri: 'https://ui-avatars.com/api/?name=Aventureiro&background=EADBB0&color=2C1B12&size=200' }}
-            style={styles.avatar} 
-          />
-          <View style={styles.cameraIcon}>
-            <Camera color={Colors.carvalhoEscuro} size={16} />
-          </View>
+        <TouchableOpacity onPress={handleAvatarChange} disabled={isUploading}>
+          {isUploading ? (
+            <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#EADBB0' }]}>
+              <ActivityIndicator size="large" color={Colors.carvalhoEscuro} />
+            </View>
+          ) : (
+            <>
+              <Image source={avatarUri ? { uri: avatarUri } : { uri: 'https://ui-avatars.com/api/?name=Aventureiro&background=EADBB0&color=2C1B12&size=200' }} style={styles.avatar} />
+              <View style={styles.cameraIcon}>
+                <Camera color={Colors.carvalhoEscuro} size={16} />
+              </View>
+            </>
+          )}
         </TouchableOpacity>
         <View style={{ alignItems: 'center', marginTop: 10 }}>
           <Text style={styles.nickname}>{(user as any)?.nickname || 'Aventureiro Sem Nome'} (ID: {user?.id})</Text>
@@ -125,9 +272,9 @@ export function ProfileScreen() {
             <Edit3 color={Colors.pergaminho} size={16} />
             <Text style={styles.editProfileText}>Editar Perfil</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.editProfileBtn, { backgroundColor: Colors.rubiBordo }]} onPress={signOut}>
-            <LogOut color={Colors.pergaminho} size={16} />
-            <Text style={styles.editProfileText}>Sair</Text>
+          <TouchableOpacity style={[styles.editProfileBtn, { backgroundColor: '#3A2418' }]} onPress={() => setIsSettingsVisible(true)}>
+            <Settings color={Colors.pergaminho} size={16} />
+            <Text style={styles.editProfileText}>Configurações</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -152,7 +299,22 @@ export function ProfileScreen() {
         keyExtractor={item => item.id.toString()}
         renderItem={renderRelicItem}
         contentContainerStyle={{ paddingHorizontal: 16 }}
-        ListEmptyComponent={<Text style={styles.emptyText}>{activeTab === 'anuncios' ? 'Você ainda não anunciou nenhuma relíquia.' : 'Sua lista de desejos está vazia.'}</Text>}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <ScrollText color={Colors.pergaminho} size={48} opacity={0.6} />
+            <Text style={styles.emptyText}>
+              {activeTab === 'anuncios' ? 'Você ainda não forjou nenhuma relíquia.' : 'Sua lista de desejos está vazia.'}
+            </Text>
+          </View>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.douradoNobre]}
+            tintColor={Colors.douradoNobre}
+          />
+        }
       />
 
       {/* O Modal de Edição de Perfil que estava faltando! */}
@@ -166,6 +328,7 @@ export function ProfileScreen() {
             
             <TextInput style={styles.input} placeholder="Novo Nome de Aventureiro..." placeholderTextColor="#A08C75" value={newNickname} onChangeText={setNewNickname} />
             <TextInput style={styles.input} placeholder="Nova Senha..." placeholderTextColor="#A08C75" secureTextEntry value={newPassword} onChangeText={setNewPassword} />
+            <TextInput style={styles.input} placeholder="WhatsApp (Ex: 5511999999999)" placeholderTextColor="#A08C75" keyboardType="phone-pad" value={newPhone} onChangeText={setNewPhone} />
             
             <TouchableOpacity style={styles.btnSave} onPress={handleSaveProfile}>
               <Save color={Colors.carvalhoEscuro} size={20} />
@@ -174,16 +337,62 @@ export function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Configurações */}
+      <Modal visible={isSettingsVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.modalClose} onPress={() => setIsSettingsVisible(false)}>
+              <X color={Colors.rubiBordo} size={24} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Configurações</Text>
+            
+            <TouchableOpacity style={styles.settingsItem} onPress={() => Alert.alert("Sobre", "Lance Raro - Versão 1.0.0")}>
+              <Text style={styles.settingsItemText}>📜 Sobre o Lance Raro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.settingsItem} onPress={() => Alert.alert("Políticas", "A Guilda não se responsabiliza por goblins ladrões de cartas.")}>
+              <Text style={styles.settingsItemText}>⚖️ Políticas e Termos de Uso</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.settingsItem, { borderBottomWidth: 0 }]} onPress={signOut}>
+              <LogOut color={Colors.rubiBordo} size={20} />
+              <Text style={[styles.settingsItemText, { color: Colors.rubiBordo, marginLeft: 10 }]}>Desconectar da Taverna</Text>
+            </TouchableOpacity>
+
+            <View style={{ marginTop: 30 }}>
+              <TouchableOpacity style={styles.btnDanger} onPress={handleDeleteAccount}>
+                <ShieldAlert color={Colors.pergaminho} size={20} />
+                <Text style={styles.btnDangerText}>Excluir Conta Definitivamente</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Impulsionamento (Boost VIP) */}
+      <Modal visible={isBoostVisible} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.modalClose} onPress={() => setIsBoostVisible(false)}>
+              <X color={Colors.rubiBordo} size={24} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>✨ Destaque VIP ✨</Text>
+            <Text style={{ color: Colors.pergaminho, textAlign: 'center', marginBottom: 20 }}>Chame a atenção dos aventureiros e venda muito mais rápido!</Text>
+            <TouchableOpacity style={[styles.boostOption, { borderColor: '#CD7F32' }]} onPress={() => handleBuyBoost(1, 'R$ 5,00')}><Text style={[styles.boostOptionTitle, { color: '#CD7F32' }]}>🥉 Destaque Bronze (R$ 5,00)</Text><Text style={styles.boostOptionDesc}>Borda bronzeada. Sobe posições no Mural por 3 dias.</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.boostOption, { borderColor: '#C0C0C0' }]} onPress={() => handleBuyBoost(2, 'R$ 15,00')}><Text style={[styles.boostOptionTitle, { color: '#C0C0C0' }]}>🥈 Destaque Prata (R$ 15,00)</Text><Text style={styles.boostOptionDesc}>Borda prateada brilhante. Alta prioridade nas buscas por 7 dias.</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.boostOption, { borderColor: '#FFD700', backgroundColor: 'rgba(255, 215, 0, 0.1)' }]} onPress={() => handleBuyBoost(3, 'R$ 30,00')}><Text style={[styles.boostOptionTitle, { color: '#FFD700' }]}>🥇 Destaque Ouro (R$ 30,00)</Text><Text style={styles.boostOptionDesc}>O ápice do luxo! Topo absoluto do Mural com borda mágica por 15 dias.</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-// // NOTA: Crie uma pasta 'assets' na raiz do projeto e coloque uma imagem 'default-avatar.png' lá dentro.
+// // NOTA: criar uma pasta 'assets' na raiz do projeto e colocar uma imagem de 'default-avatar.png' lá dentro
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.carvalhoEscuro },
   header: { alignItems: 'center', padding: 20, backgroundColor: '#25160F', borderBottomWidth: 1, borderBottomColor: Colors.douradoNobre },
-  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: Colors.douradoNobre },
+  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: Colors.douradoNobre, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 4, elevation: 8 },
   cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: Colors.douradoNobre, padding: 8, borderRadius: 20 },
   nickname: { color: Colors.douradoNobre, fontSize: 22, fontFamily: 'serif', fontWeight: 'bold' },
   email: { color: Colors.pergaminho, fontSize: 14, fontFamily: 'sans-serif', opacity: 0.8 },
@@ -194,8 +403,9 @@ const styles = StyleSheet.create({
   tabButtonActive: { backgroundColor: Colors.douradoNobre },
   tabText: { color: Colors.pergaminho, fontFamily: 'serif', fontSize: 14 },
   tabTextActive: { color: Colors.carvalhoEscuro, fontWeight: 'bold' },
-  emptyText: { color: Colors.pergaminho, textAlign: 'center', marginTop: 20 },
-  relicCard: { flexDirection: 'row', backgroundColor: Colors.pergaminho, borderRadius: 8, padding: 10, marginBottom: 12, alignItems: 'center' },
+  emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 50, paddingHorizontal: 20 },
+  emptyText: { color: Colors.pergaminho, textAlign: 'center', marginTop: 16, fontStyle: 'italic', fontSize: 14, opacity: 0.8 },
+  relicCard: { flexDirection: 'row', backgroundColor: Colors.pergaminho, borderRadius: 8, padding: 10, marginBottom: 12, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 4 },
   relicImage: { width: 50, height: 70, borderRadius: 4 },
   relicInfo: { flex: 1, marginLeft: 10 },
   relicTitle: { color: Colors.carvalhoEscuro, fontSize: 16, fontWeight: 'bold' },
@@ -209,5 +419,12 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 22, fontFamily: 'serif', color: Colors.douradoNobre, textAlign: 'center', marginBottom: 20 },
   input: { backgroundColor: '#EADBB0', borderRadius: 8, padding: 12, marginBottom: 15, fontFamily: 'sans-serif', color: Colors.carvalhoEscuro },
   btnSave: { backgroundColor: Colors.douradoNobre, flexDirection: 'row', padding: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  btnSaveText: { color: Colors.carvalhoEscuro, fontWeight: 'bold', marginLeft: 8, fontSize: 16 }
+  btnSaveText: { color: Colors.carvalhoEscuro, fontWeight: 'bold', marginLeft: 8, fontSize: 16 },
+  settingsItem: { flexDirection: 'row', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: Colors.azulArcano, alignItems: 'center' },
+  settingsItemText: { color: Colors.pergaminho, fontSize: 16, fontFamily: 'serif' },
+  btnDanger: { backgroundColor: Colors.rubiBordo, flexDirection: 'row', padding: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  btnDangerText: { color: Colors.pergaminho, fontWeight: 'bold', marginLeft: 10, fontSize: 16 },
+  boostOption: { borderWidth: 2, padding: 15, borderRadius: 10, marginBottom: 15, backgroundColor: '#2C1B12' },
+  boostOptionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
+  boostOptionDesc: { color: Colors.pergaminho, fontSize: 14, opacity: 0.9 }
 });
