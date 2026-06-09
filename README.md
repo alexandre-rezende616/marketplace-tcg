@@ -11,7 +11,10 @@ O grande diferencial deste projeto é sua **Arquitetura Taxonômica de Dados**, 
 * 🛡️ **Autenticação de Aventureiros:** Login, Cadastro e perfis customizáveis com avatares dinâmicos (UI-Avatars).
 * 📜 **Mural da Guilda (Home):** Feed de anúncios com filtros cruzados globais (Idioma, Conservação) e dinâmicos (Raridade específica baseada no Jogo).
 * 📸 **Forja de Relíquias (Anúncios):** Publicação de cartas com suporte a múltiplas fotos (Câmera ou Galeria) e formulários dinâmicos que bloqueiam combinações impossíveis (Ex: Um "Showcase" não pode existir fora de Star Wars).
-* 👑 **Painel do Mestre da Taverna (Admin):** Área restrita com indicadores de BI (Business Intelligence) e controle absoluto do catálogo taxonômico (Criação e Expurgação de filtros).
+* ✨ **Destaques VIP:** Sistema de monetização com impulsionamento de anúncios (Ouro, Prata, Bronze) e expiração automática controlada pelo servidor.
+* 🔔 **Correio da Taverna:** Sistema de notificações In-App para avisar os aventureiros sobre status de compras e validades de destaques.
+* 📍 **Geolocalização Automática:** Integração com o GPS do aparelho para capturar coordenadas e filtrar relíquias por região no Mural.
+*  **Painel do Mestre da Taverna (Admin):** Área restrita com indicadores de BI (Business Intelligence) e controle absoluto do catálogo taxonômico (Criação e Expurgação de filtros).
 * 🎒 **Inventário:** Gerenciamento de cartas publicadas e lista de desejos (Favoritos).
 
 ---
@@ -19,6 +22,7 @@ O grande diferencial deste projeto é sua **Arquitetura Taxonômica de Dados**, 
 ## 🛠️ Stack Tecnológico
 
 * **Frontend Mobile:** React Native + Expo
+* **Mapa e Localização:** `expo-location`
 * **Linguagem:** TypeScript
 * **Navegação:** React Navigation (Tabs & Stacks)
 * **Integração:** Consumo de API REST (Java Spring Boot)
@@ -29,7 +33,7 @@ O grande diferencial deste projeto é sua **Arquitetura Taxonômica de Dados**, 
 
 ## 🏗️ Backend e Banco de Dados
 
-O aplicativo agora se comunica com uma API desenvolvida em **Java Spring Boot**. Toda a arquitetura de dados, incluindo a taxonomia de raridades e o banco de dados, foi movida para este novo repositório dedicado.
+O aplicativo se comunica com uma API robusta desenvolvida em **Java Spring Boot**. O banco de dados evoluiu para utilizar **PostgreSQL** hospedado na nuvem (Neon), garantindo persistência e velocidade em escala global.
 
 🔗 **Repositório do Backend:** backend-lance-raro
 

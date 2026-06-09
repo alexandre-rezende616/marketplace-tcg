@@ -1,4 +1,4 @@
-export const BASE_URL = 'http://10.65.13.71:8080/api';
+export const BASE_URL = 'http://10.65.43.12:8080/api';
 
 export const api = {
   loginUser: async (email: string, pass: string) => {
