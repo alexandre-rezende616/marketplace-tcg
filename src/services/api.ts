@@ -1,4 +1,5 @@
-export const BASE_URL = 'http://10.65.43.12:8080/api';
+// Substitua o link abaixo pelo SEU link do Render, mantendo o /api no final!
+export const BASE_URL = 'https://lance-raro-api.onrender.com/api';
 
 export const api = {
   loginUser: async (email: string, pass: string) => {
