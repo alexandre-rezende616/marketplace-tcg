@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, FlatList, Modal, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, FlatList, Modal, TextInput, ActivityIndicator, RefreshControl, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Camera, Trash2, Edit3, X, Save, LogOut, CheckCircle, HeartCrack, ScrollText, Settings, Sparkles, ShieldAlert } from 'lucide-react-native';
@@ -176,19 +176,27 @@ export function ProfileScreen() {
     ]);
   };
 
-  const handleBuyBoost = (level: number, priceStr: string) => {
-    // Simulador VIP (Pronto para integrar AbacatePay depois!)
+  const handleBuyBoost = async (level: number, priceStr: string) => {
+    if (!relicToBoost || !user) return;
+
     Alert.alert(
-      "Destaque VIP", 
-      `A taxa de ${priceStr} foi paga à Taverna com sucesso!`, 
-      [{ text: "OK", onPress: async () => {
-        if (relicToBoost) {
-          await api.boostRelic(relicToBoost.id, level);
-          setIsBoostVisible(false);
-          loadMyRelics();
-          Alert.alert("✨ Sucesso!", "Sua relíquia foi abençoada e agora brilha no topo do mural!");
-        }
-      }}]
+      "Gerar Pagamento",
+      `Deseja ir para o AbacatePay gerar a cobrança PIX de ${priceStr}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Ir para Pagamento", onPress: async () => {
+            const billingInfo = await api.generatePixBilling(relicToBoost.id, level, user.email);
+            
+            if (billingInfo && billingInfo.checkoutUrl) {
+              Linking.openURL(billingInfo.checkoutUrl);
+              
+              setIsBoostVisible(false);
+              loadMyRelics();
+            } else {
+              Alert.alert("Erro", "A Guilda não conseguiu gerar o pagamento no momento.");
+            }
+        }}
+      ]
     );
   };
 
@@ -378,8 +386,8 @@ export function ProfileScreen() {
             <Text style={styles.modalTitle}>✨ Destaque VIP ✨</Text>
             <Text style={{ color: Colors.pergaminho, textAlign: 'center', marginBottom: 20 }}>Chame a atenção dos aventureiros e venda muito mais rápido!</Text>
             <TouchableOpacity style={[styles.boostOption, { borderColor: '#CD7F32' }]} onPress={() => handleBuyBoost(1, 'R$ 5,00')}><Text style={[styles.boostOptionTitle, { color: '#CD7F32' }]}>🥉 Destaque Bronze (R$ 5,00)</Text><Text style={styles.boostOptionDesc}>Borda bronzeada. Sobe posições no Mural por 3 dias.</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.boostOption, { borderColor: '#C0C0C0' }]} onPress={() => handleBuyBoost(2, 'R$ 15,00')}><Text style={[styles.boostOptionTitle, { color: '#C0C0C0' }]}>🥈 Destaque Prata (R$ 15,00)</Text><Text style={styles.boostOptionDesc}>Borda prateada brilhante. Alta prioridade nas buscas por 7 dias.</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.boostOption, { borderColor: '#FFD700', backgroundColor: 'rgba(255, 215, 0, 0.1)' }]} onPress={() => handleBuyBoost(3, 'R$ 30,00')}><Text style={[styles.boostOptionTitle, { color: '#FFD700' }]}>🥇 Destaque Ouro (R$ 30,00)</Text><Text style={styles.boostOptionDesc}>O ápice do luxo! Topo absoluto do Mural com borda mágica por 15 dias.</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.boostOption, { borderColor: '#C0C0C0' }]} onPress={() => handleBuyBoost(2, 'R$ 10,00')}><Text style={[styles.boostOptionTitle, { color: '#C0C0C0' }]}>🥈 Destaque Prata (R$ 10,00)</Text><Text style={styles.boostOptionDesc}>Borda prateada brilhante. Alta prioridade nas buscas por 7 dias.</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.boostOption, { borderColor: '#FFD700', backgroundColor: 'rgba(255, 215, 0, 0.1)' }]} onPress={() => handleBuyBoost(3, 'R$ 25,00')}><Text style={[styles.boostOptionTitle, { color: '#FFD700' }]}>🥇 Destaque Ouro (R$ 25,00)</Text><Text style={styles.boostOptionDesc}>O ápice do luxo! Topo absoluto do Mural com borda mágica por 30 dias.</Text></TouchableOpacity>
           </View>
         </View>
       </Modal>

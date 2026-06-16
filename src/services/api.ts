@@ -207,10 +207,13 @@ export const api = {
     }
   },
 
-  generatePixBilling: async (relicId: number) => {
+  generatePixBilling: async (relicId: number, boostLevel: number, payerEmail: string) => {
     try {
-      console.log(`[APP] Solicitando PIX para a relíquia ID: ${relicId} no endereço: ${BASE_URL}/payments/checkout/${relicId}`);
-      const response = await fetch(`${BASE_URL}/payments/checkout/${relicId}`);
+      const response = await fetch(`${BASE_URL}/payments/create-billing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relicId, boostLevel, payerEmail })
+      });
       if (!response.ok) throw new Error('Falha ao gerar o PIX na Taverna.');
       return await response.json();
     } catch (e) {

@@ -4,6 +4,16 @@ Bem-vindo à Taverna! O **Lance Raro** é um aplicativo mobile desenvolvido com 
 
 O grande diferencial deste projeto é sua **Arquitetura Taxonômica de Dados**, que gerencia de forma inteligente a hierarquia complexa de raridades e acabamentos de múltiplos jogos de cartas (Pokémon, Magic, Yu-Gi-Oh!, Star Wars, etc.).
 
+## 👥 Integrantes e Atribuições
+
+Abaixo estão os desenvolvedores do projeto e as principais responsabilidades de cada um para a entrega final:
+
+* **Alexandre Torres Rezende (UC24200528)**: Desenvolvimento Frontend Mobile (React Native/Expo), Autenticação de Aventureiros, Lógica de Telas e Build de Produção (EAS/APK).
+* **Bruno Braga dos Santos (UC24202928)**: UI/UX Design (Wireframes), Identidade Visual (Cores e Tipografia), Estilização de Componentes e Layout das Telas (Mural, Perfil, Formulários).
+* **Iuri Pereira Marques (UC24202519)**: Integração do Gateway de Pagamentos (AbacatePay/Webhooks), Gerenciamento de Rotas In-App e Mapeamento dos Serviços de Conexão (`api.ts`).
+* **Lucas Paulo de Souza Farias (UC24202620)**: Arquitetura do Banco de Dados (PostgreSQL/Neon), Modelagem de Entidade-Relacionamento e Estruturação Taxonômica (Matrizes TCG, Raridades, Condições).
+* **lucas bezerra de castro (UC24201568)**: Desenvolvimento Backend (Java Spring Boot), Endpoints REST, Deploy Nuvem (Render) e Scripts de Povoamento de Dados (`DataSeeder`).
+
 ---
 
 ## ✨ Principais Funcionalidades
@@ -41,36 +51,51 @@ O backend possui um script de **Database Seeding** (através do `DataSeeder.java
 
 ---
 
-## 🚀 Como Rodar o Projeto Localmente
+## 🚀 Execução do Projeto (Passo a Passo)
+
+> **⚠️ Nota de Versão:** A versão final do aplicativo para a avaliação encontra-se na branch `main`.
 
 ### Pré-requisitos
+### 📱 Opção 1: Instalação Rápida (Recomendado para Avaliadores)
+Para facilitar o teste e a avaliação do projeto, disponibilizamos a build final em formato `.apk` (para Android), já configurada para se conectar ao nosso banco de dados e backend na nuvem.
+
+* **Link para Download do APK:** Página de Build do Expo (Lance Raro)
+* Basta acessar o link, fazer o download do arquivo `.apk`, transferir para um dispositivo Android e realizar a instalação.
+
+https://expo.dev/accounts/half-dead/projects/lance-raro/builds/e5cf624b-3b60-4b75-b0e1-d11bf0d0cbd2
+---
+
+### 💻 Opção 2: Execução do Código Fonte (Desenvolvimento)
+
+#### Pré-requisitos
 * Node.js instalado.
 * Aplicativo **Expo Go** instalado no seu celular (iOS ou Android) OU um emulador configurado no PC.
+* Java 21 e Maven instalados (caso vá executar o servidor localmente ao invés de usar a nuvem).
 
 ### Passo a Passo
 
-1. **Configure e rode o Backend:**
-   * Siga as instruções no repositório do backend para iniciar a API na sua máquina local.
-
-2. **Configuração de IP:**
-   * Como o app roda em um emulador ou dispositivo físico e a API roda localmente na sua máquina, você precisará **atualizar o IP** em todas as requisições.
-   * Abra o arquivo `src/services/api.ts` e altere a constante global `BASE_URL` (ex: `http://10.65.65.125:8080/api`) usando o endereço IPv4 da sua máquina na rede atual.
-   * *Dica:* No Windows, abra o CMD e digite `ipconfig` para descobrir seu endereço IPv4 local.
-
-3. **Clone o repositório do App:**
+1. **Clone o repositório:**
    ```bash
    git clone https://github.com/alexandre-rezende616/marketplace-tcg.git
-   cd marketplace-tcg
+   ```
+
+2. **Execução do Backend (Java Spring Boot):**
+   * Abra o terminal na pasta raiz do backend.
+   * O sistema conta com um arquivo `DataSeeder.java`. Portanto, **não é necessário popular o banco de dados manualmente**. Ao iniciar, a API injetará os usuários, jogos (TCGs), categorias e anúncios de teste automaticamente.
+   * Para iniciar a API:
+     ```bash
+     mvn spring-boot:run
+     ```
+
+3. **Configuração da Conexão no Mobile:**
+   * Navegue até o arquivo `src/services/api.ts`.
+   * Caso vá testar consumindo o backend local, altere o valor da `BASE_URL` para o endereço IPv4 da sua máquina local (Ex: `http://192.168.0.15:8080/api`).
+   * Caso vá testar a aplicação em Produção, a `BASE_URL` já estará apontando para o Render (`https://lance-raro-api.onrender.com/api`).
+
+4. **Execução do Frontend (React Native):**
+   ```bash
    cd lance-raro
-   ```
-
-4. **Instale as dependências:**
-   ```bash
    npm install
-   ```
-
-5. **Inicie o servidor do Expo:**
-   ```bash
    npx expo start
    ```
 
@@ -80,7 +105,7 @@ O backend possui um script de **Database Seeding** (através do `DataSeeder.java
 
 ---
 
-## 🧙‍♂️ Usuários de Teste (Criados automaticamente pelo Seed)
+## 🧙‍♂️ População Inicial (Seed) e Contas de Teste
 
 Use as credenciais abaixo para testar as diferentes permissões do sistema:
 
