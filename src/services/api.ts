@@ -214,7 +214,10 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ relicId, boostLevel, payerEmail })
       });
-      if (!response.ok) throw new Error('Falha ao gerar o PIX na Taverna.');
+      if (!response.ok) {
+         const errText = await response.text();
+         throw new Error(`Falha na Taverna: ${errText}`);
+      }
       return await response.json();
     } catch (e) {
       console.error("Erro na integração Abacate Pay:", e);
