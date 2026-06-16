@@ -45,7 +45,7 @@ Abaixo estão os desenvolvedores do projeto e as principais responsabilidades de
 
 O aplicativo se comunica com uma API robusta desenvolvida em **Java Spring Boot**. O banco de dados evoluiu para utilizar **PostgreSQL** hospedado na nuvem (Neon), garantindo persistência e velocidade em escala global.
 
-🔗 **Repositório do Backend:** backend-lance-raro
+🔗 **Repositório do Backend:** [backend-lance-raro](https://github.com/alexandre-rezende616/backend-lance-raro.git)
 
 O backend possui um script de **Database Seeding** (através do `DataSeeder.java`) que injeta os usuários, categorias (Regras Taxonômicas), grupos e relíquias de teste ao subir o servidor pela primeira vez.
 
