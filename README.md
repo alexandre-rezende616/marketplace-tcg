@@ -45,7 +45,7 @@ Abaixo estão os desenvolvedores do projeto e as principais responsabilidades de
 
 O aplicativo se comunica com uma API robusta desenvolvida em **Java Spring Boot**. O banco de dados evoluiu para utilizar **PostgreSQL** hospedado na nuvem (Neon), garantindo persistência e velocidade em escala global.
 
-🔗 **Repositório do Backend:** backend-lance-raro
+🔗 **Repositório do Backend:** [backend-lance-raro](https://github.com/alexandre-rezende616/backend-lance-raro.git)
 
 O backend possui um script de **Database Seeding** (através do `DataSeeder.java`) que injeta os usuários, categorias (Regras Taxonômicas), grupos e relíquias de teste ao subir o servidor pela primeira vez.
 
@@ -53,19 +53,7 @@ O backend possui um script de **Database Seeding** (através do `DataSeeder.java
 
 ## 🚀 Execução do Projeto (Passo a Passo)
 
-> **⚠️ Nota de Versão:** A versão final do aplicativo para a avaliação encontra-se na branch `main`.
-
-### Pré-requisitos
-### 📱 Opção 1: Instalação Rápida (Recomendado para Avaliadores)
-Para facilitar o teste e a avaliação do projeto, disponibilizamos a build final em formato `.apk` (para Android), já configurada para se conectar ao nosso banco de dados e backend na nuvem.
-
-* **Link para Download do APK:** Página de Build do Expo (Lance Raro)
-* Basta acessar o link, fazer o download do arquivo `.apk`, transferir para um dispositivo Android e realizar a instalação.
-
-https://expo.dev/accounts/half-dead/projects/lance-raro/builds/e5cf624b-3b60-4b75-b0e1-d11bf0d0cbd2
----
-
-### 💻 Opção 2: Execução do Código Fonte (Desenvolvimento)
+### 💻 Execução do Código Fonte (Desenvolvimento)
 
 #### Pré-requisitos
 * Node.js instalado.
