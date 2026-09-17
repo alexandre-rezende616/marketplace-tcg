@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert, Scro
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Camera, Image as ImageIcon, PlusCircle, Search, X, MapPin } from 'lucide-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -38,7 +39,6 @@ export function AnunciarScreen({ navigation }: any) {
   const conditions = cats.filter(c => c.type?.toLowerCase() === 'condition');
   const languages = cats.filter(c => c.type?.toLowerCase() === 'language');
   
-  // Filtros dinâmicos: Só busca raridade/foil referente ao jogo selecionado!
   const rarities = cats.filter(c => c.type?.toLowerCase() === 'rarity' && c.tcgId === selectedGame);
   const finishes = cats.filter(c => c.type?.toLowerCase() === 'finish' && c.tcgId === selectedGame);
   
@@ -64,7 +64,7 @@ export function AnunciarScreen({ navigation }: any) {
         quality: 0.7,
       });
       if (!result.canceled) {
-        const newUris = result.assets.map(a => a.uri);
+        const newUris = result.assets.map((a: any) => a.uri);
         setImageUris([...imageUris, ...newUris]);
       }
     }
@@ -74,29 +74,36 @@ export function AnunciarScreen({ navigation }: any) {
     setImageUris(imageUris.filter((_, idx) => idx !== indexToRemove));
   };
 
-  // Função mágica que envia a foto para a nuvem e devolve o link de internet!
   const uploadImageToCloudinary = async (uri: string) => {
-    const CLOUD_NAME = 'dbk9uavtw'; // <--- Troque pelo seu Cloud Name
-    const UPLOAD_PRESET = 'lanceraro_preset'; // <--- Troque pelo nome do seu Preset Unsigned
-
-    const data = new FormData();
-    data.append('file', {
-      uri,
-      type: 'image/jpeg',
-      name: `relic_${Date.now()}.jpg`,
-    } as any);
-    data.append('upload_preset', UPLOAD_PRESET);
-    data.append('cloud_name', CLOUD_NAME);
+    const CLOUD_NAME = 'dbk9uavtw';
+    const UPLOAD_PRESET = 'lanceraro_preset';
 
     try {
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-        method: 'POST',
-        body: data,
-      });
-      const result = await response.json();
-      return result.secure_url; // Devolve o link bonitinho!
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+      
+      const response = await FileSystem.uploadAsync(uploadUrl, uri, {
+        fieldName: 'file',
+        httpMethod: 'POST',
+        uploadType: 1, // 1 significa MULTIPART nas entranhas do Expo
+        parameters: {
+          upload_preset: UPLOAD_PRESET,
+        },
+      } as any); // <--- A MÁGICA AQUI: "as any" desativa o erro!
+
+      const result = JSON.parse(response.body);
+
+      // 🚨 O DETECTOR: Se o Cloudinary rejeitar, vai exibir na tela o motivo!
+      if (response.status !== 200) {
+        console.error("Erro Cloudinary detalhado:", result);
+        Alert.alert('A Nuvem Recusou', result.error?.message || 'Erro desconhecido no Cloudinary.');
+        return null;
+      }
+
+      return result.secure_url;
+      
     } catch (e) {
-      console.error("Erro no Cloudinary:", e);
+      console.error("Erro crítico no FileSystem:", e);
+      Alert.alert('Erro', 'O feitiço falhou e a foto não chegou à nuvem.');
       return null;
     }
   };
@@ -133,13 +140,19 @@ export function AnunciarScreen({ navigation }: any) {
     try {
       const formattedPrice = parseFloat(price.replace(',', '.'));
 
-      // Fazendo o upload de todas as fotos que o usuário escolheu
       const uploadedUrls = [];
       for (const uri of imageUris) {
         const cloudUrl = await uploadImageToCloudinary(uri);
         if (cloudUrl) {
           uploadedUrls.push(cloudUrl);
         }
+      }
+      
+      // 🛡️ TRAVA DE SEGURANÇA: Cancela o envio se a foto não subir (evita cartas fantasmas)
+      if (uploadedUrls.length === 0) {
+        Alert.alert('Falha na Forja', 'As fotos não foram enviadas. O anúncio foi abortado!');
+        setIsUploading(false);
+        return;
       }
       
       await api.addRelic(
@@ -151,13 +164,12 @@ export function AnunciarScreen({ navigation }: any) {
         selectedFinish,
         selectedLanguage, 
         user!.id, 
-        uploadedUrls.join(','), // Agora mandamos os links da nuvem pro Java!
+        uploadedUrls.join(','),
         location
       );
       
       Alert.alert('Sucesso!', 'Sua relíquia foi fixada no Mural da Guilda!');
       
-      // Limpar formulário
       setTitle(''); setPrice(''); setImageUris([]); setLocation('');
       setSelectedGame(null); setSelectedCondition(null); setSelectedRarity(null); setSelectedFinish(null); setSelectedLanguage(null);
       
@@ -169,7 +181,6 @@ export function AnunciarScreen({ navigation }: any) {
     }
   };
 
-  // Componente auxiliar para não repetirmos código na hora de desenhar as listas
   const renderCategoryGroup = (title: string, data: any[], selectedValue: number | null, onSelect: (id: number) => void) => (
     <View style={styles.groupContainer}>
       <Text style={styles.groupLabel}>{title}</Text>
@@ -239,7 +250,6 @@ export function AnunciarScreen({ navigation }: any) {
             </Text>
           </TouchableOpacity>
 
-          {/* Trava Hierárquica: Raridades e Finishes só aparecem APÓS a escolha da Matriz */}
           {selectedGame && rarities.length > 0 && renderCategoryGroup("2. Nível de Raridade?", rarities, selectedRarity, setSelectedRarity)}
           {selectedGame && finishes.length > 0 && renderCategoryGroup("3. Acabamento / Tratamento?", finishes, selectedFinish, setSelectedFinish)}
           
@@ -259,7 +269,6 @@ export function AnunciarScreen({ navigation }: any) {
         </View>
       </ScrollView>
 
-      {/* Modal de Busca de Jogo (TCG) */}
       <Modal visible={isTcgModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -277,8 +286,8 @@ export function AnunciarScreen({ navigation }: any) {
                   style={styles.dropdownItem} 
                   onPress={() => { 
                     setSelectedGame(item.id); 
-                    setSelectedRarity(null); // Reseta a raridade caso o cara mude o jogo
-                    setSelectedFinish(null); // Reseta o Foil
+                    setSelectedRarity(null); 
+                    setSelectedFinish(null); 
                     setIsTcgModalVisible(false); 
                     setTcgSearch(''); 
                   }}>
@@ -308,8 +317,6 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#EADBB0', borderRadius: 8, padding: 12, marginBottom: 15, marginHorizontal: 20 },
   locationContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 15, gap: 10 },
   btnLocation: { backgroundColor: Colors.azulArcano, padding: 12, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  
-  // Estilos dos Grupos Horizontais
   groupContainer: { marginBottom: 20 },
   groupLabel: { color: Colors.pergaminho, marginBottom: 10, fontFamily: 'serif', fontSize: 16, paddingHorizontal: 20 },
   scrollGroup: { paddingHorizontal: 20, gap: 10 },
@@ -317,7 +324,6 @@ const styles = StyleSheet.create({
   catBadgeActive: { backgroundColor: Colors.douradoNobre, borderColor: Colors.douradoNobre },
   catText: { color: Colors.pergaminho },
   catTextActive: { color: Colors.carvalhoEscuro, fontWeight: 'bold' },
-  
   btnPrimary: { backgroundColor: Colors.douradoNobre, flexDirection: 'row', padding: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginHorizontal: 20, marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.4, shadowRadius: 4, elevation: 6 },
   btnPrimaryText: { color: Colors.carvalhoEscuro, fontWeight: 'bold', marginLeft: 10, fontSize: 16 },
   dropdownBtn: { backgroundColor: '#EADBB0', borderRadius: 8, padding: 15, marginHorizontal: 20, marginBottom: 15, borderWidth: 1, borderColor: Colors.douradoNobre },

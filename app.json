@@ -39,6 +39,11 @@
       "eas": {
         "projectId": "103703a0-fe2b-4990-89c7-c24bff51baa7"
       }
-    }
+    },
+    "plugins": [
+      "expo-splash-screen",
+      "expo-sqlite",
+      "expo-status-bar"
+    ]
   }
 }
