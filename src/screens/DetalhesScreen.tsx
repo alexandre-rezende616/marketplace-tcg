@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions, Modal, Linking } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Heart, MessageCircle, ArrowLeft, Star } from 'lucide-react-native';
 import ImageViewer from 'react-native-image-zoom-viewer';
 
 import { Colors } from '../theme/colors';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { queryKeys } from '../services/queryClient';
 
 const conditionDescriptions: Record<string, string> = {
   'Mint (M)': 'A carta está absolutamente perfeita, sem nenhum arranhão, marca de manuseio ou imperfeição de fábrica.',
@@ -21,40 +23,47 @@ const screenWidth = Dimensions.get('window').width;
 export function DetalhesScreen({ route, navigation }: any) {
   const { user } = useAuth();
   const { relicId } = route.params; // Agora recebemos só o ID
-  
-  const [relic, setRelic] = useState<any>(null); // Estado para guardar os detalhes completos
-  const [isFavorite, setIsFavorite] = useState(false);
+  const queryClient = useQueryClient();
   const [isViewerVisible, setViewerVisible] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
 
-  useEffect(() => {
-    // // quando a tela abre, a gente usa o ID pra buscar todos os detalhes da carta no banco
-    const loadDetails = async () => {
-      let data = await api.fetchRelicDetails(relicId);
-      
-      // Buscar nome e telefone reais do vendedor
-      if (data && data.userId) {
-        const seller = await api.fetchUserDetails(data.userId);
-        if (seller) {
-          data = { ...data, sellerName: seller.nickname, sellerPhone: seller.phone } as any;
-        }
-      }
-      
-      setRelic(data);
+  const relicQuery = useQuery({
+    queryKey: queryKeys.relicDetails(relicId),
+    queryFn: async () => {
+      const data = await api.fetchRelicDetails(relicId);
+      if (!data.userId) return data;
 
-      // Checa se o usuário atual favoritou essa carta
-      if (user) {
-        const favStatus = await api.checkIsFavorite(user.id, relicId);
-        setIsFavorite(favStatus);
-      }
-    };
-    loadDetails();
-  }, [relicId, user]);
+      const seller = await api.fetchUserDetails(data.userId);
+      return seller
+        ? { ...data, sellerName: seller.nickname, sellerPhone: seller.phone }
+        : data;
+    },
+  });
+  const favoriteQuery = useQuery({
+    queryKey: queryKeys.favoriteStatus(user?.id ?? 0, relicId),
+    queryFn: () => api.checkIsFavorite(user!.id, relicId),
+    enabled: Boolean(user),
+  });
+  const relic = relicQuery.data;
+  const isFavorite = favoriteQuery.data ?? false;
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: () => api.toggleFavorite(user!.id, relicId),
+    onSuccess: (newStatus) => {
+      if (!user) return;
+      queryClient.setQueryData(
+        queryKeys.favoriteStatus(user.id, relicId),
+        newStatus,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.userFavorites(user.id),
+      });
+    },
+    onError: () => Alert.alert('Erro', 'Não foi possível atualizar o favorito.'),
+  });
 
   const handleToggleFavorite = async () => {
     if (user) {
-      const newStatus = await api.toggleFavorite(user.id, relic.id);
-      setIsFavorite(newStatus);
+      toggleFavoriteMutation.mutate();
     } else {
       Alert.alert("Aviso", "Você precisa estar logado para favoritar!");
     }
@@ -87,10 +96,22 @@ export function DetalhesScreen({ route, navigation }: any) {
   };
 
   // Tela de loading enquanto busca os dados
-  if (!relic) {
+  if (relicQuery.isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.carvalhoEscuro }}>
         <ActivityIndicator size="large" color={Colors.douradoNobre} />
+      </View>
+    );
+  }
+  if (relicQuery.isError || !relic) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: Colors.carvalhoEscuro }}>
+        <Text style={{ color: Colors.pergaminho, textAlign: 'center', marginBottom: 16 }}>
+          Não foi possível carregar esta relíquia.
+        </Text>
+        <TouchableOpacity onPress={() => void relicQuery.refetch()}>
+          <Text style={{ color: Colors.douradoNobre, fontWeight: 'bold' }}>Tentar novamente</Text>
+        </TouchableOpacity>
       </View>
     );
   }

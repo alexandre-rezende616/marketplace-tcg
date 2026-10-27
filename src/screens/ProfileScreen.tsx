@@ -2,81 +2,57 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, FlatList, Modal, TextInput, ActivityIndicator, RefreshControl, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, Trash2, Edit3, X, Save, LogOut, CheckCircle, HeartCrack, ScrollText, Settings, Sparkles, ShieldAlert } from 'lucide-react-native';
 
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { api, getErrorMessage, uploadCloudinaryImage } from '../services/api';
 import { Colors } from '../theme/colors';
+import { queryKeys } from '../services/queryClient';
 
 export function ProfileScreen() {
   const navigation = useNavigation<any>();
   const { user, signIn, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const [avatarUri, setAvatarUri] = useState(user?.avatarUrl || null);
-  const [myRelics, setMyRelics] = useState<any[]>([]);
-  const [myFavorites, setMyFavorites] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'anuncios' | 'favoritos'>('anuncios');
 
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [newNickname, setNewNickname] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newPhone, setNewPhone] = useState((user as any)?.phone || '');
+  const [newPhone, setNewPhone] = useState(user?.phone ?? '');
   const [isUploading, setIsUploading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isBoostVisible, setIsBoostVisible] = useState(false);
   const [relicToBoost, setRelicToBoost] = useState<any>(null);
 
-  const loadMyRelics = async () => {
-    if (user) {
-      const relics = await api.fetchUserRelics(user.id);
-      setMyRelics(relics);
-
-      const favs = await api.fetchUserFavorites(user.id);
-      setMyFavorites(favs);
-    }
-  };
+  const userRelicsQuery = useQuery({
+    queryKey: queryKeys.userRelics(user?.id ?? 0),
+    queryFn: () => api.fetchUserRelics(user!.id),
+    enabled: Boolean(user),
+  });
+  const userFavoritesQuery = useQuery({
+    queryKey: queryKeys.userFavorites(user?.id ?? 0),
+    queryFn: () => api.fetchUserFavorites(user!.id),
+    enabled: Boolean(user),
+  });
+  const myRelics = userRelicsQuery.data ?? [];
+  const myFavorites = userFavoritesQuery.data ?? [];
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadMyRelics();
-    setRefreshing(false);
-  }, [user]);
+    await Promise.all([userRelicsQuery.refetch(), userFavoritesQuery.refetch()]);
+  }, [userFavoritesQuery.refetch, userRelicsQuery.refetch]);
 
   // // useFocusEffect é tipo um useEffect que roda toda vez que a gente entra na tela
   // // bom pra atualizar a lista depois que a gente anuncia uma carta nova
   useFocusEffect(
     useCallback(() => {
-      loadMyRelics();
-    }, [user])
+      if (!user) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.userRelics(user.id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.userFavorites(user.id) });
+    }, [queryClient, user])
   );
-
-  // Função mágica do Cloudinary copiada da Forja
-  const uploadImageToCloudinary = async (uri: string) => {
-    const CLOUD_NAME = 'dbk9uavtw'; // Seu Cloud Name
-    const UPLOAD_PRESET = 'lanceraro_preset';
-
-    const data = new FormData();
-    data.append('file', {
-      uri,
-      type: 'image/jpeg',
-      name: `avatar_${Date.now()}.jpg`,
-    } as any);
-    data.append('upload_preset', UPLOAD_PRESET);
-    data.append('cloud_name', CLOUD_NAME);
-
-    try {
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-        method: 'POST',
-        body: data,
-      });
-      const result = await response.json();
-      return result.secure_url;
-    } catch (e) {
-      console.error("Erro no Cloudinary:", e);
-      return null;
-    }
-  };
 
   const handleAvatarChange = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -88,18 +64,19 @@ export function ProfileScreen() {
 
     if (!result.canceled && user) {
       setIsUploading(true);
-      const localUri = result.assets[0].uri;
-      
-      const cloudUrl = await uploadImageToCloudinary(localUri);
-      
-      if (cloudUrl) {
+      try {
+        const cloudUrl = await uploadCloudinaryImage(
+          result.assets[0].uri,
+          `avatar_${Date.now()}.jpg`,
+        );
         await api.updateUserAvatar(user.id, cloudUrl);
         setAvatarUri(cloudUrl);
-        signIn({ ...user, avatarUrl: cloudUrl } as any);
-      } else {
-        Alert.alert("Erro", "A magia falhou ao enviar o retrato para a nuvem.");
+        signIn({ ...user, avatarUrl: cloudUrl });
+      } catch (error) {
+        Alert.alert('Erro', getErrorMessage(error, 'Falha ao enviar o retrato.'));
+      } finally {
+        setIsUploading(false);
       }
-      setIsUploading(false);
     }
   };
 
@@ -108,12 +85,15 @@ export function ProfileScreen() {
       try {
         await api.updateUserProfile(user.id, newNickname, newPassword, newPhone);
         Alert.alert("Sucesso", "Seu pergaminho de identidade foi atualizado!");
-        // cast to any to allow extra fields (like phone) that may not be declared on User type
-        signIn({ ...(user as any), nickname: newNickname || (user as any).nickname, phone: newPhone || (user as any).phone } as any);
+        signIn({
+          ...user,
+          nickname: newNickname || user.nickname,
+          phone: newPhone || user.phone,
+        });
         setIsEditModalVisible(false);
         setNewPassword('');
       } catch (error) {
-        Alert.alert("Erro", "Falha ao atualizar perfil.");
+        Alert.alert("Erro", getErrorMessage(error, "Falha ao atualizar perfil."));
       }
     }
   };
@@ -129,8 +109,16 @@ export function ProfileScreen() {
           style: "destructive", 
           onPress: async () => {
             if (user) {
-              await api.deleteRelic(relicId, user.id);
-              loadMyRelics(); // Recarrega a lista pra tirar a carta que foi deletada
+              try {
+                await api.deleteRelic(relicId);
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: queryKeys.userRelics(user.id) }),
+                  queryClient.invalidateQueries({ queryKey: queryKeys.relics }),
+                  queryClient.invalidateQueries({ queryKey: queryKeys.adminStats }),
+                ]);
+              } catch (error) {
+                Alert.alert('Erro', getErrorMessage(error, 'Não foi possível remover o anúncio.'));
+              }
             }
           }
         }
@@ -148,8 +136,16 @@ export function ProfileScreen() {
           text: "Confirmar Venda", 
           onPress: async () => {
             if (user) {
-              await api.buyRelic(relicId);
-              loadMyRelics(); // Recarrega a lista para mostrar a tag vermelha "Vendida"
+              try {
+                await api.buyRelic(relicId);
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: queryKeys.userRelics(user.id) }),
+                  queryClient.invalidateQueries({ queryKey: queryKeys.relics }),
+                  queryClient.invalidateQueries({ queryKey: queryKeys.adminStats }),
+                ]);
+              } catch (error) {
+                Alert.alert('Erro', getErrorMessage(error, 'Não foi possível atualizar o anúncio.'));
+              }
             }
           }
         }
@@ -159,8 +155,15 @@ export function ProfileScreen() {
 
   const handleRemoveFavorite = async (relicId: number) => {
     if (user) {
-      await api.toggleFavorite(user.id, relicId);
-      loadMyRelics(); // Recarrega para a carta sumir da lista na hora!
+      try {
+        await api.toggleFavorite(user.id, relicId);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.userFavorites(user.id) }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.favoriteStatus(user.id, relicId) }),
+        ]);
+      } catch (error) {
+        Alert.alert('Erro', getErrorMessage(error, 'Não foi possível atualizar os favoritos.'));
+      }
     }
   };
 
@@ -169,8 +172,12 @@ export function ProfileScreen() {
       { text: "Cancelar", style: "cancel" },
       { text: "Excluir Tudo", style: "destructive", onPress: async () => {
         if (user) {
-          await api.deleteAccount(user.id);
-          signOut();
+          try {
+            await api.deleteAccount(user.id);
+            signOut();
+          } catch (error) {
+            Alert.alert('Erro', getErrorMessage(error, 'Não foi possível excluir a conta.'));
+          }
         }
       }}
     ]);
@@ -185,15 +192,20 @@ export function ProfileScreen() {
       [
         { text: "Cancelar", style: "cancel" },
         { text: "Ir para Pagamento", onPress: async () => {
-            const billingInfo = await api.generatePixBilling(relicToBoost.id, level, user.email);
-            
-            if (billingInfo && billingInfo.checkoutUrl) {
-              Linking.openURL(billingInfo.checkoutUrl);
-              
+            try {
+              const billingInfo = await api.generatePixBilling(relicToBoost.id, level, user.email);
+              if (!billingInfo?.checkoutUrl) {
+                throw new Error('A resposta do pagamento não contém um link de checkout.');
+              }
+
+              await Linking.openURL(billingInfo.checkoutUrl);
               setIsBoostVisible(false);
-              loadMyRelics();
-            } else {
-              Alert.alert("Erro", "A Guilda não conseguiu gerar o pagamento no momento.");
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: queryKeys.userRelics(user.id) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.relics }),
+              ]);
+            } catch (error) {
+              Alert.alert('Erro', getErrorMessage(error, 'A guilda não conseguiu gerar o pagamento.'));
             }
         }}
       ]
@@ -311,13 +323,21 @@ export function ProfileScreen() {
           <View style={styles.emptyContainer}>
             <ScrollText color={Colors.pergaminho} size={48} opacity={0.6} />
             <Text style={styles.emptyText}>
-              {activeTab === 'anuncios' ? 'Você ainda não forjou nenhuma relíquia.' : 'Sua lista de desejos está vazia.'}
+              {activeTab === 'anuncios' && userRelicsQuery.isLoading
+                ? 'Carregando seus anúncios...'
+                : activeTab === 'favoritos' && userFavoritesQuery.isLoading
+                  ? 'Carregando seus favoritos...'
+                  : (activeTab === 'anuncios' ? userRelicsQuery.isError : userFavoritesQuery.isError)
+                    ? 'Não foi possível carregar esta lista. Puxe para atualizar.'
+                    : activeTab === 'anuncios'
+                      ? 'Você ainda não forjou nenhuma relíquia.'
+                      : 'Sua lista de desejos está vazia.'}
             </Text>
           </View>
         }
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+              refreshing={userRelicsQuery.isRefetching || userFavoritesQuery.isRefetching}
             onRefresh={onRefresh}
             colors={[Colors.douradoNobre]}
             tintColor={Colors.douradoNobre}

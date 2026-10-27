@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { RemoteStateProvider } from './src/services/queryClient';
 
 // Mantém a splash screen nativa visível automaticamente
 SplashScreen.preventAutoHideAsync();
@@ -39,9 +40,11 @@ export default function App() {
 
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <AuthProvider>
-        <AppNavigator />
-      </AuthProvider>
+      <RemoteStateProvider>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </RemoteStateProvider>
     </View>
   );
 }

@@ -31,11 +31,11 @@ Abaixo estão os desenvolvedores do projeto e as principais responsabilidades de
 
 ## 🛠️ Stack Tecnológico
 
-* **Frontend Mobile:** React Native + Expo
+* **Frontend Mobile:** React Native 0.88 + Expo SDK 58
 * **Mapa e Localização:** `expo-location`
 * **Linguagem:** TypeScript
 * **Navegação:** React Navigation (Tabs & Stacks)
-* **Integração:** Consumo de API REST (Java Spring Boot)
+* **Integração:** API REST via Axios; estado remoto e cache com TanStack Query
 * **Ícones:** Lucide React Native
 * **Mídia:** `expo-image-picker`
 
@@ -72,24 +72,25 @@ O backend possui um script de **Database Seeding** (através do `DataSeeder.java
    * O sistema conta com um arquivo `DataSeeder.java`. Portanto, **não é necessário popular o banco de dados manualmente**. Ao iniciar, a API injetará os usuários, jogos (TCGs), categorias e anúncios de teste automaticamente.
    * Para iniciar a API:
      ```bash
-     mvn spring-boot:run
+     .\mvnw.cmd spring-boot:run
      ```
 
-3. **Configuração da Conexão no Mobile:**
-   * Navegue até o arquivo `src/services/api.ts`.
-   * Caso vá testar consumindo o backend local, altere o valor da `BASE_URL` para o endereço IPv4 da sua máquina local (Ex: `http://192.168.0.15:8080/api`).
-   * Caso vá testar a aplicação em Produção, a `BASE_URL` já estará apontando para o Render (`https://lance-raro-api.onrender.com/api`).
+3. **Configuração da conexão no Mobile:**
+   * O app usa a URL de produção por padrão. Para apontar para um backend local, crie um arquivo `.env` na raiz do app com `EXPO_PUBLIC_API_URL=http://SEU_IP:8080/api`.
+   * Em um aparelho físico, use o IPv4 da máquina na rede local. No emulador Android, use `http://10.0.2.2:8080/api`.
+   * A URL é lida por `src/services/api.ts`; reinicie o Expo depois de criar ou alterar o `.env`.
 
 4. **Execução do Frontend (React Native):**
    ```bash
-   cd lance-raro
+   cd marketplace-tcg
    npm install
    npx expo start
    ```
 
-6. **Abra o aplicativo:**
+5. **Abra o aplicativo:**
    * Escaneie o QR Code que aparecerá no terminal usando o aplicativo **Expo Go** no seu celular.
    * Ou pressione `a` no terminal para abrir no emulador Android.
+   * Mantenha o Expo Go atualizado pela loja do aparelho e use `npx expo start --clear` após trocar de SDK. O Expo Go e o projeto precisam usar o mesmo SDK.
 
 ---
 
@@ -108,8 +109,29 @@ Use as credenciais abaixo para testar as diferentes permissões do sistema:
 ---
 
 ## 🎨 Identidade Visual
-A paleta de cores do app remete a madeiras, papéis antigos e metais preciosos:
-* **Carvalho Escuro** (`#1A0F0A`, `#25160F`, `#3A2418`)
-* **Pergaminho** (`#EADBB0`)
-* **Dourado Nobre** (`#C8A951`)
-* **Rubi Bordô** (`#8B0000`)
+A interface preserva o tema da Taverna com componentes reutilizáveis e tokens centralizados em `src/theme/tokens.ts`.
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| Fundo / Carvalho | `#2C1B12` | Fundo e navegação |
+| Superfície elevada | `#3A2418` | Painéis escuros |
+| Pergaminho | `#F5E6BE` | Conteúdo e cartões |
+| Pergaminho suave | `#EADBB0` | Campos e superfícies de leitura |
+| Dourado | `#D4AF37` | Ações principais e destaque |
+| Verde | `#3E5622` | Sucesso e disponibilidade |
+| Rubi | `#7B1113` | Erros e ações destrutivas |
+| Azul | `#2B4C7E` | Informação e ações secundárias |
+
+Espaçamentos, raios e escala tipográfica também ficam nos tokens. Os componentes de base estão em `src/components/ui`: `AppText`, `Button`, `Card` e `TextField`.
+
+## 🌐 Networking e estado remoto
+
+`src/services/api.ts` centraliza as chamadas HTTP em uma instância Axios com timeout e URL configurável por `EXPO_PUBLIC_API_URL`. Erros HTTP e de rede são propagados para a interface, em vez de serem convertidos em listas vazias ou resultados de sucesso.
+
+TanStack Query gerencia cache, carregamento, atualização e invalidação dos dados remotos. O cache padrão considera os dados recentes por 30 segundos, atualiza ao voltar para o app e é invalidado depois de alterações em anúncios, favoritos, notificações e filtros.
+
+## 🧪 Verificações
+
+* App: `npx tsc --noEmit`
+* Backend: `.\mvnw.cmd test`
+* Os testes do backend usam H2 em memória no perfil `test`; não precisam de conexão com o Neon.

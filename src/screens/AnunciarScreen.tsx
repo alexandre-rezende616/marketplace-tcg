@@ -1,23 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert, ScrollView, Modal, FlatList, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, Image as ImageIcon, PlusCircle, Search, X, MapPin } from 'lucide-react-native';
-import * as FileSystem from 'expo-file-system/legacy';
 
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { api, getErrorMessage, uploadCloudinaryImage } from '../services/api';
 import { Colors } from '../theme/colors';
+import { queryKeys } from '../services/queryClient';
 
 export function AnunciarScreen({ navigation }: any) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [location, setLocation] = useState('');
-  
-  const [cats, setCats] = useState<any[]>([]);
-  const [tcgs, setTcgs] = useState<any[]>([]);
   
   const [selectedGame, setSelectedGame] = useState<number | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<number | null>(null);
@@ -31,10 +30,16 @@ export function AnunciarScreen({ navigation }: any) {
   const [isUploading, setIsUploading] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
-  useEffect(() => {
-    api.fetchTcgGroups().then(setTcgs);
-    api.fetchCategories().then(setCats);
-  }, []);
+  const categoriesQuery = useQuery({
+    queryKey: queryKeys.categories,
+    queryFn: api.fetchCategories,
+  });
+  const tcgGroupsQuery = useQuery({
+    queryKey: queryKeys.tcgGroups,
+    queryFn: api.fetchTcgGroups,
+  });
+  const cats = categoriesQuery.data ?? [];
+  const tcgs = tcgGroupsQuery.data ?? [];
 
   const conditions = cats.filter(c => c.type?.toLowerCase() === 'condition');
   const languages = cats.filter(c => c.type?.toLowerCase() === 'language');
@@ -75,35 +80,10 @@ export function AnunciarScreen({ navigation }: any) {
   };
 
   const uploadImageToCloudinary = async (uri: string) => {
-    const CLOUD_NAME = 'dbk9uavtw';
-    const UPLOAD_PRESET = 'lanceraro_preset';
-
     try {
-      const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
-      
-      const response = await FileSystem.uploadAsync(uploadUrl, uri, {
-        fieldName: 'file',
-        httpMethod: 'POST',
-        uploadType: 1, // 1 significa MULTIPART nas entranhas do Expo
-        parameters: {
-          upload_preset: UPLOAD_PRESET,
-        },
-      } as any); // <--- A MÁGICA AQUI: "as any" desativa o erro!
-
-      const result = JSON.parse(response.body);
-
-      // 🚨 O DETECTOR: Se o Cloudinary rejeitar, vai exibir na tela o motivo!
-      if (response.status !== 200) {
-        console.error("Erro Cloudinary detalhado:", result);
-        Alert.alert('A Nuvem Recusou', result.error?.message || 'Erro desconhecido no Cloudinary.');
-        return null;
-      }
-
-      return result.secure_url;
-      
-    } catch (e) {
-      console.error("Erro crítico no FileSystem:", e);
-      Alert.alert('Erro', 'O feitiço falhou e a foto não chegou à nuvem.');
+      return await uploadCloudinaryImage(uri, `relic_${Date.now()}.jpg`);
+    } catch (error) {
+      Alert.alert('Falha no envio', getErrorMessage(error, 'A foto não chegou à nuvem.'));
       return null;
     }
   };
@@ -167,6 +147,7 @@ export function AnunciarScreen({ navigation }: any) {
         uploadedUrls.join(','),
         location
       );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.relics });
       
       Alert.alert('Sucesso!', 'Sua relíquia foi fixada no Mural da Guilda!');
       
@@ -175,7 +156,7 @@ export function AnunciarScreen({ navigation }: any) {
       
       navigation.navigate('Mural');
     } catch (e) {
-      Alert.alert('Erro', 'A magia falhou ao salvar a carta no banco.');
+      Alert.alert('Erro', getErrorMessage(e, 'A magia falhou ao salvar a carta no banco.'));
     } finally {
       setIsUploading(false);
     }
@@ -202,6 +183,16 @@ export function AnunciarScreen({ navigation }: any) {
     <>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
         <Text style={styles.header}>Oferecer Relíquia</Text>
+        {(categoriesQuery.isError || tcgGroupsQuery.isError) && (
+          <TouchableOpacity
+            onPress={() => {
+              void categoriesQuery.refetch();
+              void tcgGroupsQuery.refetch();
+            }}
+          >
+            <Text style={styles.errorText}>Não foi possível carregar os filtros. Toque para tentar novamente.</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.imageContainer}>
           {imageUris.length > 0 ? (
@@ -304,6 +295,7 @@ export function AnunciarScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.carvalhoEscuro },
+  errorText: { color: Colors.rubiBordo, textAlign: 'center', paddingHorizontal: 20, marginBottom: 12 },
   header: { fontSize: 24, fontFamily: 'serif', color: Colors.douradoNobre, padding: 20, textAlign: 'center' },
   imageContainer: { alignItems: 'center', marginBottom: 20 },
   imagePlaceholder: { width: 150, height: 200, backgroundColor: '#EADBB0', borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: Colors.douradoNobre, borderStyle: 'dashed', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5 },

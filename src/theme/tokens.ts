@@ -1,0 +1,57 @@
+export const tokens = {
+  color: {
+    background: '#2C1B12',
+    surface: '#3A2418',
+    surfaceRaised: '#4A3022',
+    paper: '#F5E6BE',
+    paperMuted: '#EADBB0',
+    text: '#1A0F0A',
+    textMuted: '#A08C75',
+    textOnDark: '#F5E6BE',
+    accent: '#D4AF37',
+    accentPressed: '#B8952D',
+    success: '#3E5622',
+    danger: '#7B1113',
+    info: '#2B4C7E',
+    border: 'rgba(212, 175, 55, 0.32)',
+    overlay: 'rgba(26, 15, 10, 0.72)',
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    xxl: 32,
+  },
+  radius: {
+    sm: 8,
+    md: 12,
+    lg: 20,
+    pill: 999,
+  },
+  typography: {
+    family: {
+      body: 'sans-serif',
+      heading: 'serif',
+    },
+    size: {
+      caption: 12,
+      body: 16,
+      subtitle: 18,
+      title: 24,
+      display: 32,
+    },
+    lineHeight: {
+      body: 24,
+      title: 30,
+      display: 38,
+    },
+    weight: {
+      regular: '400' as const,
+      medium: '500' as const,
+      semibold: '600' as const,
+      bold: '700' as const,
+    },
+  },
+} as const;

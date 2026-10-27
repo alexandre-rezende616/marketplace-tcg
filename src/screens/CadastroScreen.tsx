@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { api } from '../services/api';
 import { Colors } from '../theme/colors';
-import { ArrowLeft, UserPlus, Eye, EyeOff } from 'lucide-react-native';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { AppText } from '../components/ui/AppText';
+import { TextField } from '../components/ui/TextField';
 
 export function CadastroScreen({ navigation }: any) {
   const [nickname, setNickname] = useState('');
@@ -37,11 +41,11 @@ export function CadastroScreen({ navigation }: any) {
         <ArrowLeft color={Colors.pergaminho} size={28} />
       </TouchableOpacity>
       
-      <Text style={styles.title}>Novo Aventureiro</Text>
+      <AppText variant="title" tone="accent" style={styles.title}>Novo Aventureiro</AppText>
       
-      <View style={styles.card}>
-        <TextInput style={styles.input} placeholder="Apelido / Nome na Guilda..." placeholderTextColor="#A08C75" value={nickname} onChangeText={setNickname} />
-        <TextInput style={styles.input} placeholder="E-mail de contato..." placeholderTextColor="#A08C75" value={email} onChangeText={setEmail} autoCapitalize="none" />
+      <Card>
+        <TextField placeholder="Apelido / Nome na Guilda..." value={nickname} onChangeText={setNickname} />
+        <TextField placeholder="E-mail de contato..." value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
         
         <View style={styles.passwordContainer}>
           <TextInput style={styles.passwordInput} placeholder="Senha secreta..." placeholderTextColor="#A08C75" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
@@ -57,11 +61,8 @@ export function CadastroScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
         
-        <TouchableOpacity style={styles.btnPrimary} onPress={handleRegister}>
-          <UserPlus color={Colors.carvalhoEscuro} size={20} />
-          <Text style={styles.btnText}>Assinar o Pacto</Text>
-        </TouchableOpacity>
-      </View>
+        <Button onPress={handleRegister}>Assinar o Pacto</Button>
+      </Card>
     </View>
   );
 }
@@ -69,12 +70,9 @@ export function CadastroScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.carvalhoEscuro, justifyContent: 'center', padding: 20 },
   backBtn: { position: 'absolute', top: 50, left: 20, zIndex: 10, padding: 10 },
-  title: { fontSize: 32, fontFamily: 'serif', color: Colors.douradoNobre, textAlign: 'center', marginBottom: 30 },
-  card: { backgroundColor: Colors.pergaminho, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: Colors.douradoNobre },
+  title: { textAlign: 'center', marginBottom: 30 },
   input: { backgroundColor: '#EADBB0', borderRadius: 8, padding: 12, marginBottom: 15, fontFamily: 'sans-serif' },
   passwordContainer: { flexDirection: 'row', backgroundColor: '#EADBB0', borderRadius: 8, marginBottom: 15, alignItems: 'center' },
   passwordInput: { flex: 1, padding: 12, fontFamily: 'sans-serif' },
   eyeIcon: { padding: 10, paddingRight: 15 },
-  btnPrimary: { backgroundColor: Colors.douradoNobre, flexDirection: 'row', padding: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  btnText: { color: Colors.carvalhoEscuro, fontWeight: 'bold', marginLeft: 10, fontSize: 16 }
 });

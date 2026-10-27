@@ -1,9 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Modal, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { api } from '../services/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, getErrorMessage } from '../services/api';
 import { Colors } from '../theme/colors';
 import { Flame, BarChart3, Trash2, ShieldAlert } from 'lucide-react-native';
+import { queryKeys } from '../services/queryClient';
 
 const FILTER_TYPES = [
   { id: 'TCG', label: 'Jogo Matriz (TCG)' },
@@ -14,22 +16,32 @@ const FILTER_TYPES = [
 ];
 
 export function MestreTavernaScreen() {
+  const queryClient = useQueryClient();
   const [newCatName, setNewCatName] = useState('');
   const [selectedType, setSelectedType] = useState('TCG');
   
-  const [tcgs, setTcgs] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [stats, setStats] = useState({ totalRelics: 0, totalSold: 0, totalValue: 0 });
-  
+  const statsQuery = useQuery({
+    queryKey: queryKeys.adminStats,
+    queryFn: api.getAdminStats,
+  });
+  const tcgGroupsQuery = useQuery({
+    queryKey: queryKeys.tcgGroups,
+    queryFn: api.fetchTcgGroups,
+  });
+  const categoriesQuery = useQuery({
+    queryKey: queryKeys.categories,
+    queryFn: api.fetchCategories,
+  });
+  const tcgs = tcgGroupsQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
+  const stats = statsQuery.data ?? { totalRelics: 0, totalSold: 0, totalValue: 0 };
   const [selectedTcgForNewCat, setSelectedTcgForNewCat] = useState<number | null>(null);
 
-  const loadAdminData = () => {
-    api.getAdminStats().then(setStats);
-    api.fetchTcgGroups().then(setTcgs);
-    api.fetchCategories().then(setCategories);
-  };
-
-  useFocusEffect(useCallback(() => { loadAdminData(); }, []));
+  useFocusEffect(useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.adminStats });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tcgGroups });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.categories });
+  }, [queryClient]));
 
   const handleCreateFilter = async () => {
     if (!newCatName.trim()) {
@@ -52,9 +64,12 @@ export function MestreTavernaScreen() {
       
       Alert.alert('Sucesso!', `Filtro "${newCatName}" forjado.`);
       setNewCatName('');
-      loadAdminData();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.tcgGroups }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.categories }),
+      ]);
     } catch (e) {
-      Alert.alert('Erro', 'A magia falhou.');
+      Alert.alert('Erro', getErrorMessage(e, 'A magia falhou.'));
     }
   };
 
@@ -62,9 +77,9 @@ export function MestreTavernaScreen() {
     try {
       await api.deleteCategory(id);
       Alert.alert("Expurgação", "Filtro destruído.");
-      loadAdminData();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.categories });
     } catch (e) {
-      Alert.alert("Erro", "Não foi possível destruir.");
+      Alert.alert("Erro", getErrorMessage(e, "Não foi possível destruir."));
     }
   };
 
@@ -74,6 +89,19 @@ export function MestreTavernaScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={styles.title}>Painel Taxonômico</Text>
       <Text style={styles.subtitle}>Mestre da Taverna</Text>
+      {(statsQuery.isError || tcgGroupsQuery.isError || categoriesQuery.isError) && (
+        <TouchableOpacity
+          onPress={() => {
+            void statsQuery.refetch();
+            void tcgGroupsQuery.refetch();
+            void categoriesQuery.refetch();
+          }}
+        >
+          <Text style={[styles.subtitle, { color: Colors.rubiBordo }]}>
+            Não foi possível atualizar o painel. Toque para tentar novamente.
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.panel}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>

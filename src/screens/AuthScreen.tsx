@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Colors } from '../theme/colors';
-import { LogIn } from 'lucide-react-native';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { AppText } from '../components/ui/AppText';
+import { TextField } from '../components/ui/TextField';
 
 export function AuthScreen({ navigation }: any) {
   const { signIn } = useAuth();
@@ -41,23 +44,14 @@ export function AuthScreen({ navigation }: any) {
         source={require('../../assets/logo.png')} // O caminho volta a apontar para a pasta 'assets' na raiz do projeto
         style={styles.logo} 
       />
-      <Text style={styles.title}>Lance Raro</Text>
-      <Text style={styles.subtitle}>Guilda de Aventureiros</Text>
+      <AppText variant="display" tone="accent" style={styles.title}>Lance Raro</AppText>
+      <AppText variant="body" tone="inverse" style={styles.subtitle}>Guilda de Aventureiros</AppText>
 
-      <View style={styles.card}>
-        <TextInput style={styles.input} placeholder="E-mail da sua jornada..." placeholderTextColor="#A08C75" value={email} onChangeText={setEmail} autoCapitalize="none" />
-        <TextInput style={styles.input} placeholder="Senha secreta..." placeholderTextColor="#A08C75" value={password} onChangeText={setPassword} secureTextEntry />
+      <Card>
+        <TextField placeholder="E-mail da sua jornada..." value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+        <TextField placeholder="Senha secreta..." value={password} onChangeText={setPassword} secureTextEntry />
 
-        <TouchableOpacity style={styles.btnPrimary} onPress={handleLogin} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color={Colors.carvalhoEscuro} size="small" />
-          ) : (
-            <>
-              <LogIn color={Colors.carvalhoEscuro} size={20} />
-              <Text style={styles.btnText}>Adentrar a Taverna</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        <Button onPress={handleLogin} loading={isLoading}>Adentrar a Taverna</Button>
 
         <TouchableOpacity onPress={handleForgotPassword} style={{ marginTop: 15 }}>
           <Text style={styles.forgotText}>Esqueci minha senha</Text>
@@ -66,7 +60,7 @@ export function AuthScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.navigate('Cadastro')} style={{ marginTop: 15 }}>
           <Text style={styles.registerText}>Ainda não tem conta? Assine o Pacto!</Text>
         </TouchableOpacity>
-      </View>
+      </Card>
     </KeyboardAvoidingView>
   );
 }
@@ -74,12 +68,8 @@ export function AuthScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.carvalhoEscuro, justifyContent: 'center', padding: 20 },
   logo: { width: 150, height: 150, alignSelf: 'center', marginBottom: 20, resizeMode: 'contain' },
-  title: { fontSize: 36, fontFamily: 'serif', color: Colors.douradoNobre, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: Colors.pergaminho, textAlign: 'center', marginBottom: 30 },
-  card: { backgroundColor: Colors.pergaminho, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: Colors.douradoNobre },
-  input: { backgroundColor: '#EADBB0', borderRadius: 8, padding: 12, marginBottom: 15, fontFamily: 'sans-serif' },
-  btnPrimary: { backgroundColor: Colors.douradoNobre, flexDirection: 'row', padding: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  btnText: { color: Colors.carvalhoEscuro, fontWeight: 'bold', marginLeft: 10 },
+  title: { textAlign: 'center' },
+  subtitle: { textAlign: 'center', marginBottom: 30 },
   forgotText: { color: Colors.azulArcano, textAlign: 'center', fontWeight: 'bold' },
   registerText: { color: Colors.rubiBordo, textAlign: 'center', fontWeight: 'bold', marginTop: 10 }
 });

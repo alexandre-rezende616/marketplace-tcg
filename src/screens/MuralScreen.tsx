@@ -1,25 +1,23 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, TextInput, ScrollView, Modal, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { Search, SlidersHorizontal, X, ScrollText, MapPin, Bell, Trash2 } from 'lucide-react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Colors } from '../theme/colors';
+import { queryKeys } from '../services/queryClient';
 
 export function MuralScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const [relics, setRelics] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [tcgs, setTcgs] = useState<any[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
   
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [isInboxVisible, setIsInboxVisible] = useState(false);
   
   const [isLocating, setIsLocating] = useState(false);
@@ -34,12 +32,59 @@ export function MuralScreen() {
   const [isTcgModalVisible, setIsTcgModalVisible] = useState(false);
   const [tcgSearch, setTcgSearch] = useState('');
 
-  useEffect(() => {
-    api.fetchTcgGroups().then(setTcgs);
-    api.fetchCategories().then(setCategories);
-  }, []);
+  const relicsQuery = useQuery({
+    queryKey: queryKeys.relicList([
+      selectedTcg,
+      searchQuery,
+      selectedCondition,
+      selectedRarity,
+      selectedFinish,
+      selectedLanguage,
+      locationQuery,
+    ]),
+    queryFn: async () => {
+      const data = await api.fetchRelics(
+        selectedTcg,
+        searchQuery,
+        selectedCondition,
+        selectedRarity,
+        selectedFinish,
+        selectedLanguage,
+        locationQuery,
+      );
+      return data.sort((a, b) => (b.boostLevel ?? 0) - (a.boostLevel ?? 0));
+    },
+  });
+  const categoriesQuery = useQuery({
+    queryKey: queryKeys.categories,
+    queryFn: api.fetchCategories,
+  });
+  const tcgGroupsQuery = useQuery({
+    queryKey: queryKeys.tcgGroups,
+    queryFn: api.fetchTcgGroups,
+  });
+  const notificationsQuery = useQuery({
+    queryKey: queryKeys.notifications(user?.id ?? 0),
+    queryFn: () => api.fetchNotifications(user!.id),
+    enabled: Boolean(user),
+  });
+  const relics = relicsQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
+  const tcgs = tcgGroupsQuery.data ?? [];
+  const notifications = notificationsQuery.data ?? [];
 
   const filteredGames = tcgs.filter(g => g.name.toLowerCase().includes(tcgSearch.toLowerCase()));
+
+  useFocusEffect(
+    useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.relics });
+      if (user) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.notifications(user.id),
+        });
+      }
+    }, [queryClient, user]),
+  );
 
   const handleGetLocation = async () => {
     setIsLocating(true);
@@ -69,34 +114,44 @@ export function MuralScreen() {
   const rarities = categories.filter(c => c.type?.toLowerCase() === 'rarity' && c.tcgId === selectedTcg);
   const finishes = categories.filter(c => c.type?.toLowerCase() === 'finish' && c.tcgId === selectedTcg);
 
-  const loadRelics = async () => {
-    const data = await api.fetchRelics(selectedTcg, searchQuery, selectedCondition, selectedRarity, selectedFinish, selectedLanguage, locationQuery);
-    // Magia da Ordem VIP: Quem tem maior nível (Ouro > Prata > Bronze > 0) vai pro topo da lista!
-    const sortedData = data.sort((a: any, b: any) => (b.boostLevel || 0) - (a.boostLevel || 0));
-    setRelics(sortedData);
-  };
-
-  useFocusEffect(useCallback(() => { loadRelics(); }, [selectedTcg, searchQuery, selectedCondition, selectedRarity, selectedFinish, selectedLanguage, locationQuery]));
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadRelics();
-    await loadNotifications();
-    setRefreshing(false);
-  }, [selectedTcg, searchQuery, selectedCondition, selectedRarity, selectedFinish, selectedLanguage, locationQuery]);
+  const markNotificationReadMutation = useMutation({
+    mutationFn: api.markNotificationRead,
+    onSuccess: (_, notificationId) => {
+      if (!user) return;
+      queryClient.setQueryData(
+        queryKeys.notifications(user.id),
+        (current: any[] | undefined) =>
+          current?.map(notification =>
+            notification.id === notificationId
+              ? { ...notification, isRead: true }
+              : notification,
+          ),
+      );
+    },
+    onError: () => Alert.alert('Erro', 'Não foi possível marcar a notificação como lida.'),
+  });
+  const deleteNotificationMutation = useMutation({
+    mutationFn: api.deleteNotification,
+    onSuccess: (_, notificationId) => {
+      if (!user) return;
+      queryClient.setQueryData(
+        queryKeys.notifications(user.id),
+        (current: any[] | undefined) =>
+          current?.filter(notification => notification.id !== notificationId),
+      );
+    },
+    onError: () => Alert.alert('Erro', 'Não foi possível apagar a notificação.'),
+  });
 
   const handleOpenInbox = () => {
     setIsInboxVisible(true);
-    // Marca todas como lidas ao abrir a caixa de entrada
-    notifications.filter(n => !n.isRead).forEach(async (n) => {
-      await api.markNotificationRead(n.id);
+    notifications.filter(n => !n.isRead).forEach(notification => {
+      markNotificationReadMutation.mutate(notification.id);
     });
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
   };
 
-  const handleDeleteNotification = async (id: number) => {
-    await api.deleteNotification(id);
-    setNotifications(notifications.filter(n => n.id !== id));
+  const handleDeleteNotification = (id: number) => {
+    deleteNotificationMutation.mutate(id);
   };
 
   // Define o brilho da carta baseada no pacote pago
@@ -107,13 +162,6 @@ export function MuralScreen() {
     return {};
   };
   
-  const loadNotifications = async () => {
-    if (user) {
-      const data = await api.fetchNotifications(user.id);
-      setNotifications(data);
-    }
-  };
-
   const renderCard = ({ item }: { item: any }) => {
     const boostStyle = getBoostStyle(item.boostLevel || 0);
     return (
@@ -168,6 +216,16 @@ export function MuralScreen() {
           <SlidersHorizontal color={Colors.douradoNobre} size={24} />
         </TouchableOpacity>
       </View>
+      {(categoriesQuery.isError || tcgGroupsQuery.isError) && (
+        <TouchableOpacity
+          onPress={() => {
+            void categoriesQuery.refetch();
+            void tcgGroupsQuery.refetch();
+          }}
+        >
+          <Text style={styles.remoteError}>Não foi possível carregar os filtros. Toque para tentar novamente.</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.dropdownBtn} onPress={() => setIsTcgModalVisible(true)}>
         <Text style={styles.dropdownBtnText}>
@@ -182,16 +240,29 @@ export function MuralScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <ScrollText color={Colors.pergaminho} size={48} opacity={0.6} />
-            <Text style={styles.emptyText}>
-              {searchQuery ? "Nenhum pergaminho místico corresponde à sua busca." : "O mural está vazio. Seja o primeiro a anunciar!"}
-            </Text>
+            {relicsQuery.isLoading ? (
+              <ActivityIndicator color={Colors.douradoNobre} />
+            ) : relicsQuery.isError ? (
+              <TouchableOpacity onPress={() => void relicsQuery.refetch()}>
+                <Text style={styles.emptyText}>Não foi possível carregar o mural. Toque para tentar novamente.</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <ScrollText color={Colors.pergaminho} size={48} opacity={0.6} />
+                <Text style={styles.emptyText}>
+                  {searchQuery ? "Nenhum pergaminho místico corresponde à sua busca." : "O mural está vazio. Seja o primeiro a anunciar!"}
+                </Text>
+              </>
+            )}
           </View>
         }
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
+            refreshing={relicsQuery.isRefetching || notificationsQuery.isRefetching}
+            onRefresh={() => {
+              void relicsQuery.refetch();
+              if (user) void notificationsQuery.refetch();
+            }}
             colors={[Colors.douradoNobre]} // Cor do spinner no Android
             tintColor={Colors.douradoNobre} // Cor do spinner no iOS
           />
@@ -270,7 +341,11 @@ export function MuralScreen() {
             <FlatList
               data={notifications}
               keyExtractor={item => item.id.toString()}
-              ListEmptyComponent={<Text style={{color: Colors.pergaminho, textAlign: 'center', marginVertical: 20}}>Nenhum corvo chegou para você ainda.</Text>}
+              ListEmptyComponent={
+                <Text style={{color: Colors.pergaminho, textAlign: 'center', marginVertical: 20}}>
+                  {notificationsQuery.isError ? 'Não foi possível carregar as notificações.' : 'Nenhum corvo chegou para você ainda.'}
+                </Text>
+              }
               renderItem={({ item }) => (
                 <View style={[styles.notificationCard, !item.isRead && { borderColor: Colors.douradoNobre }]}>
                   <View style={{flex: 1}}>
@@ -291,6 +366,7 @@ export function MuralScreen() {
 // Estilos mantidos rústicos
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.carvalhoEscuro },
+  remoteError: { color: Colors.pergaminho, textAlign: 'center', marginHorizontal: 16, marginBottom: 12 },
   headerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 16, paddingHorizontal: 16, position: 'relative' },
   header: { fontSize: 24, fontFamily: 'serif', color: Colors.douradoNobre },
   bellButton: { position: 'absolute', right: 16, top: 16 },
